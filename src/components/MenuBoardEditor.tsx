@@ -671,87 +671,30 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     URL.revokeObjectURL(url);
   };
 
-const handleDownloadImage = async () => {
-  // Create an offscreen container for rendering the preview-like canvas
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "-99999px";
-  container.style.top = "-99999px";
-  container.style.width = `${template.canvasSize.width}px`;
-  container.style.height = `${template.canvasSize.height}px`;
-  container.style.backgroundColor = template.backgroundColor || "transparent";
-  if (template.backgroundImage) {
-    container.style.backgroundImage = `url(${template.backgroundImage})`;
-    container.style.backgroundSize = "cover";
-    container.style.backgroundPosition = "center";
-  }
-  document.body.appendChild(container);
-
-  // Render elements inside
-  template.elements.forEach((el) => {
-    const elDiv = document.createElement("div");
-    elDiv.style.position = "absolute";
-    elDiv.style.left = `${el.x}px`;
-    elDiv.style.top = `${el.y}px`;
-    elDiv.style.width = `${el.width}px`;
-    elDiv.style.height = `${el.height}px`;
-    elDiv.style.transform = `rotate(${el.rotation || 0}deg)`;
-    elDiv.style.zIndex = String(el.zIndex);
-    elDiv.style.backgroundColor = el.backgroundColor || "transparent";
-    elDiv.style.color = el.color || "#FFFFFF";
-    elDiv.style.fontSize = `${el.fontSize}px`;
-    elDiv.style.fontWeight = el.fontWeight;
-    elDiv.style.fontFamily = el.fontFamily;
-    elDiv.style.borderRadius = `${el.borderRadius}px`;
-    elDiv.style.opacity = String(el.opacity ?? 1);
-    elDiv.style.boxShadow = el.shadow || "none";
-    elDiv.style.display = "flex";
-    elDiv.style.alignItems = "center";
-    elDiv.style.justifyContent = "center";
-    elDiv.style.textAlign = "center";
-    elDiv.style.whiteSpace = "pre-line";
-
-    if (
-      el.type === "text" ||
-      el.type === "price" ||
-      el.type === "promotion" ||
-      el.type === "shape"
-    ) {
-      elDiv.innerText = el.content || "";
-    } else if (el.type === "image") {
-      const img = document.createElement("img");
-      img.src = el.imageUrl || "";
-      img.style.width = "100%";
-      img.style.height = "100%";
-      img.style.objectFit = "cover";
-      img.style.borderRadius = `${el.borderRadius}px`;
-      elDiv.appendChild(img);
+  const handleDownloadImage = async () => {
+    if (!innerRef.current) {
+      console.error("Canvas not ready for export");
+      return;
     }
 
-    container.appendChild(elDiv);
-  });
+    try {
+      const dataUrl = await domToImage.toPng(innerRef.current, {
+        width: template.canvasSize.width,
+        height: template.canvasSize.height,
+        style: {
+          transform: "scale(1)",   // remove zoom for export
+          transformOrigin: "top left",
+        },
+      });
 
-  try {
-    const dataUrl = await domToImage.toPng(container, {
-      width: template.canvasSize.width,
-      height: template.canvasSize.height,
-      bgcolor: template.backgroundColor || "transparent",
-    });
-    const a = document.createElement("a");
-    a.download = `${template.name}.png`;
-    a.href = dataUrl;
-    a.click();
-  } catch (err) {
-    console.error("PNG export error:", err);
-  } finally {
-    document.body.removeChild(container);
-  }
-};
-
-
-
-  // ---------- Preview ----------
-  // const [showPreview, setShowPreview] = useState(false);
+      const a = document.createElement("a");
+      a.download = `${template.name}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch (err) {
+      console.error("PNG export error:", err);
+    }
+  };
 
   // ---------- Keyboard shortcuts ----------
   useEffect(() => {
