@@ -67,6 +67,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   const imageUploadRef = useRef<HTMLInputElement>(null);
 
 
+  const activeRotateRef = useRef<{ id: string } | null>(null);
   // Preview
   const [showPreview, setShowPreview] = useState(false);
 
@@ -429,6 +430,17 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     window.addEventListener('mouseup', onPointerUp);
   };
 
+  const startRotate = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedIds([id]);
+    isPointerDownRef.current = true;
+    activeRotateRef.current = { id };
+    dragStartSnapshotRef.current = templateRef.current;
+
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+  };
+
   const onPointerMove = (e: MouseEvent) => {
     if (!isPointerDownRef.current) return;
 
@@ -505,6 +517,34 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
       return;
     }
 
+    if (activeRotateRef.current) {
+  const id = activeRotateRef.current.id;
+  const rect = getCanvasRect();
+  if (!rect) return;
+
+  const element = templateRef.current.elements.find((el) => el.id === id);
+  if (!element) return;
+
+  const centerX = rect.left + (element.x + element.width / 2) * zoom;
+  const centerY = rect.top + (element.y + element.height / 2) * zoom;
+
+  const dx = e.clientX - centerX;
+  const dy = e.clientY - centerY;
+
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+  setTemplate((prev) => {
+    const list = prev.elements.map((el) =>
+      el.id === id ? { ...el, rotation: angle } : el
+    );
+    const next = { ...prev, elements: list };
+    templateRef.current = next;
+    return next;
+  });
+
+  return;
+}
+
     const offsets = dragOffsetsRef.current;
     setTemplate((prev) => {
       const list = prev.elements.map((el) => {
@@ -529,6 +569,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     window.removeEventListener('mousemove', onPointerMove);
     window.removeEventListener('mouseup', onPointerUp);
     commitHistory();
+    activeRotateRef.current = null;
   };
 
   // ---------- Element ops ----------
@@ -556,7 +597,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
       fontSize: type === 'price' ? 32 : 24,
       fontWeight: 'bold',
       fontFamily: 'Arial',
-      color: type === 'price' ? '#FFD700' : '#FFFFFF',
+      color: type === 'price' ? '#FFD700' : '#000000',
       backgroundColor: type === 'shape' || type === 'promotion' ? '#000000' : 'transparent',
       borderRadius: type === 'shape' || type === 'promotion' ? 12 : 0,
       imageUrl:
@@ -840,7 +881,6 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         )}
 
         {/* Resize handles */}
-        {/* Resize handles */}
         {selected && (
           <>
             {/* Corners */}
@@ -888,6 +928,14 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             />
           </>
         )}
+
+        {/* Rotation handle */}
+        <div
+          data-handle="rotate"
+          className="absolute -top-8 left-1/2 -translate-x-1/2 w-4 h-4 bg-green-500 border-2 border-white rounded-full cursor-grab"
+          onMouseDown={(e) => startRotate(e, el.id)}
+        />
+        <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-px h-5 bg-green-500" />
 
       </div>
     );
