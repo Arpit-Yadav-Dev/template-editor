@@ -62,11 +62,27 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   // Pointer/drag/resize
   const isPointerDownRef = useRef(false);
   const dragOffsetsRef = useRef<DragOffsets>({});
-  const activeResizeRef = useRef<{ id: string; corner: 'tl' | 'tr' | 'bl' | 'br' } | null>(null);
+  const activeResizeRef = useRef<{ id: string; corner: 'tl' | 'tr' | 'bl' | 'br' | 'tm' | 'bm' | 'ml' | 'mr' } | null>(null);
   const dragStartSnapshotRef = useRef<MenuBoardTemplate | null>(null);
+  const imageUploadRef = useRef<HTMLInputElement>(null);
+
 
   // Preview
   const [showPreview, setShowPreview] = useState(false);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateElement(id, { imageUrl: reader.result as string }, true);
+    };
+    reader.readAsDataURL(file);
+
+    e.target.value = ""; // reset input so same file can be reselected later
+  };
+
 
   // RGB to Hex converter
   const rgbToHex = (rgb: string) => {
@@ -458,6 +474,26 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
               height = Math.max(minSize, py - y);
               break;
             }
+            case 'tm': { // top middle
+              const newY = Math.min(bottom - minSize, py);
+              height = bottom - newY;
+              y = newY;
+              break;
+            }
+            case 'bm': { // bottom middle
+              height = Math.max(minSize, py - y);
+              break;
+            }
+            case 'ml': { // middle left
+              const newX = Math.min(right - minSize, px);
+              width = right - newX;
+              x = newX;
+              break;
+            }
+            case 'mr': { // middle right
+              width = Math.max(minSize, px - x);
+              break;
+            }
           }
           return { ...el, x, y, width, height };
         });
@@ -759,7 +795,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     return (
       <div
         key={el.id}
-        className={`absolute select-none ${selected ? 'ring-2 ring-blue-500' : ''}`}
+        className={`absolute select-none ${selected ? 'border-2 border-blue-500 border-dashed' : ''}`}
         style={{
           left: el.x,
           top: el.y,
@@ -804,30 +840,55 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         )}
 
         {/* Resize handles */}
+        {/* Resize handles */}
         {selected && (
           <>
+            {/* Corners */}
             <div
               data-handle="resize"
-              className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 rounded-full cursor-nw-resize"
+              className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-nw-resize"
               onMouseDown={(e) => startResize(e, el.id, 'tl')}
             />
             <div
               data-handle="resize"
-              className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full cursor-ne-resize"
+              className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-ne-resize"
               onMouseDown={(e) => startResize(e, el.id, 'tr')}
             />
             <div
               data-handle="resize"
-              className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 rounded-full cursor-sw-resize"
+              className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-sw-resize"
               onMouseDown={(e) => startResize(e, el.id, 'bl')}
             />
             <div
               data-handle="resize"
-              className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full cursor-se-resize"
+              className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-se-resize"
               onMouseDown={(e) => startResize(e, el.id, 'br')}
+            />
+
+            {/* Edges */}
+            <div
+              data-handle="resize"
+              className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-n-resize"
+              onMouseDown={(e) => startResize(e, el.id, 'tm')}
+            />
+            <div
+              data-handle="resize"
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-s-resize"
+              onMouseDown={(e) => startResize(e, el.id, 'bm')}
+            />
+            <div
+              data-handle="resize"
+              className="absolute top-1/2 -left-1 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-w-resize"
+              onMouseDown={(e) => startResize(e, el.id, 'ml')}
+            />
+            <div
+              data-handle="resize"
+              className="absolute top-1/2 -right-1 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-e-resize"
+              onMouseDown={(e) => startResize(e, el.id, 'mr')}
             />
           </>
         )}
+
       </div>
     );
   };
@@ -1134,18 +1195,38 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         )}
 
                         {el.type === 'image' && (
-                          <div className="mt-3">
-                            <label className="block text-xs text-gray-500 mb-1">Image URL</label>
-                            <input
-                              type="url"
-                              value={el.imageUrl || ''}
-                              onChange={(e) => updateElement(id, { imageUrl: e.target.value })}
-                              onBlur={() => commitHistory()}
-                              className="w-full p-2 border border-gray-300 rounded text-sm"
-                              placeholder="Enter image URL..."
-                            />
+                          <div className="mt-3 space-y-2">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Image URL</label>
+                              <input
+                                type="url"
+                                value={el.imageUrl || ''}
+                                onChange={(e) => updateElement(id, { imageUrl: e.target.value })}
+                                onBlur={() => commitHistory()}
+                                className="w-full p-2 border border-gray-300 rounded text-sm"
+                                placeholder="Enter image URL..."
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Or Upload Image</label>
+                              <button
+                                onClick={() => imageUploadRef.current?.click()}
+                                className="w-full bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg text-sm"
+                              >
+                                Choose File
+                              </button>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                ref={imageUploadRef}
+                                className="hidden"
+                                onChange={(e) => handleImageUpload(e, id)}
+                              />
+                            </div>
                           </div>
                         )}
+
 
                         {/* Typography */}
                         {(el.type === 'text' || el.type === 'price' || el.type === 'promotion' || el.type === 'shape') && (
