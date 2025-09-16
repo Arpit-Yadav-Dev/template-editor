@@ -17,6 +17,7 @@ export interface MenuBoardElement {
   textAlign?: 'left' | 'center' | 'right';
   imageUrl?: string;
   price?: string;
+  textShadow?: string;
 }
 
 export interface CanvasSize {

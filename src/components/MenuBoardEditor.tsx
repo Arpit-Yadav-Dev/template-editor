@@ -518,32 +518,32 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     }
 
     if (activeRotateRef.current) {
-  const id = activeRotateRef.current.id;
-  const rect = getCanvasRect();
-  if (!rect) return;
+      const id = activeRotateRef.current.id;
+      const rect = getCanvasRect();
+      if (!rect) return;
 
-  const element = templateRef.current.elements.find((el) => el.id === id);
-  if (!element) return;
+      const element = templateRef.current.elements.find((el) => el.id === id);
+      if (!element) return;
 
-  const centerX = rect.left + (element.x + element.width / 2) * zoom;
-  const centerY = rect.top + (element.y + element.height / 2) * zoom;
+      const centerX = rect.left + (element.x + element.width / 2) * zoom;
+      const centerY = rect.top + (element.y + element.height / 2) * zoom;
 
-  const dx = e.clientX - centerX;
-  const dy = e.clientY - centerY;
+      const dx = e.clientX - centerX;
+      const dy = e.clientY - centerY;
 
-  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-  setTemplate((prev) => {
-    const list = prev.elements.map((el) =>
-      el.id === id ? { ...el, rotation: angle } : el
-    );
-    const next = { ...prev, elements: list };
-    templateRef.current = next;
-    return next;
-  });
+      setTemplate((prev) => {
+        const list = prev.elements.map((el) =>
+          el.id === id ? { ...el, rotation: angle } : el
+        );
+        const next = { ...prev, elements: list };
+        templateRef.current = next;
+        return next;
+      });
 
-  return;
-}
+      return;
+    }
 
     const offsets = dragOffsetsRef.current;
     setTemplate((prev) => {
@@ -859,7 +859,10 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         {el.type === 'text' || el.type === 'price' || el.type === 'promotion' || el.type === 'shape' ? (
           <div
             className="w-full h-full flex items-center justify-center text-center leading-tight"
-            style={{ backgroundColor: 'transparent' }}
+            style={{
+              backgroundColor: 'transparent',
+              textShadow: el.type !== 'shape' ? (el.textShadow || 'none') : 'none'
+            }}
           >
             {el.content}
           </div>
@@ -1393,17 +1396,18 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         </div>
 
                         <div className="mt-3">
-                          <label className="block text-xs text-gray-500 mb-1">Shadow</label>
+                          <label className="block text-xs text-gray-500 mb-1">Text Shadow</label>
                           <select
-                            value={el.shadow || 'none'}
-                            onChange={(e) => updateElement(id, { shadow: e.target.value })}
+                            value={el.textShadow || 'none'}
+                            onChange={(e) => updateElement(id, { textShadow: e.target.value })}
                             onBlur={() => commitHistory()}
                             className="w-full p-2 border border-gray-300 rounded text-sm"
                           >
                             <option value="none">None</option>
-                            <option value="0 4px 6px rgba(0,0,0,0.1)">Light</option>
-                            <option value="0 10px 15px rgba(0,0,0,0.2)">Medium</option>
-                            <option value="0 20px 25px rgba(0,0,0,0.3)">Heavy</option>
+                            <option value="1px 1px 2px rgba(0,0,0,0.5)">Soft</option>
+                            <option value="2px 2px 4px rgba(0,0,0,0.6)">Medium</option>
+                            <option value="3px 3px 6px rgba(0,0,0,0.8)">Strong</option>
+                            <option value="-1px -1px 2px rgba(0,0,0,0.5)">Top Left</option>
                           </select>
                         </div>
                       </div>
