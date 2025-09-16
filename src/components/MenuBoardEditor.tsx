@@ -578,6 +578,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     const base: MenuBoardElement = {
       id,
       type,
+      shapeType: 'rectangle',
       x: 60,
       y: 60,
       width:
@@ -591,9 +592,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             ? '$9.99'
             : type === 'promotion'
               ? 'SPECIAL OFFER'
-              : type === 'shape'
-                ? 'New Shape Text'
-                : '',
+              : '',
       fontSize: type === 'price' ? 32 : 24,
       fontWeight: 'bold',
       fontFamily: 'Arial',
@@ -846,17 +845,18 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           opacity: el.opacity ?? 1,
           boxShadow: el.shadow ?? 'none',
           zIndex: el.zIndex,
-          backgroundColor: el.backgroundColor || 'transparent',
           color: el.color || '#FFFFFF',
           fontSize: el.fontSize || 16,
           fontWeight: el.fontWeight || 'normal',
           fontFamily: el.fontFamily || 'Arial',
-          borderRadius: el.borderRadius || 0,
           whiteSpace: 'pre-line',
+          // 🚨 don’t force background/border on wrapper if it's a shape
+          backgroundColor: el.type === 'shape' ? 'transparent' : (el.backgroundColor || 'transparent'),
+          borderRadius: el.type === 'shape' ? 0 : (el.borderRadius || 0),
         }}
         onMouseDown={(e) => startDrag(e, el.id)}
       >
-        {el.type === 'text' || el.type === 'price' || el.type === 'promotion' || el.type === 'shape' ? (
+        {el.type === 'text' || el.type === 'price' || el.type === 'promotion' ? (
           <div
             className="w-full h-full flex items-center justify-center text-center leading-tight"
             style={{
@@ -865,6 +865,34 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             }}
           >
             {el.content}
+          </div>
+        ) : el.type === 'shape' ? (
+          <div className="w-full h-full flex items-center justify-center">
+            {el.shapeType === 'rectangle' && (
+              <div className="w-full h-full" style={{ backgroundColor: el.backgroundColor, borderRadius: el.borderRadius }} />
+            )}
+            {el.shapeType === 'circle' && (
+              <div className="w-full h-full rounded-full" style={{ backgroundColor: el.backgroundColor }} />
+            )}
+            {el.shapeType === 'triangle' && (
+              <div
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: `${el.width / 2}px solid transparent`,
+                  borderRight: `${el.width / 2}px solid transparent`,
+                  borderBottom: `${el.height}px solid ${el.backgroundColor}`,
+                }}
+              />
+            )}
+            {el.shapeType === 'star' && (
+              <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+                <polygon
+                  points="50,5 61,39 98,39 67,59 79,91 50,72 21,91 33,59 2,39 39,39"
+                  fill={el.backgroundColor}
+                />
+              </svg>
+            )}
           </div>
         ) : el.type === 'image' ? (
           <div
@@ -1231,7 +1259,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         </div>
 
                         {/* Content / Image */}
-                        {(el.type === 'text' || el.type === 'price' || el.type === 'promotion' || el.type === 'shape') && (
+                        {(el.type === 'text' || el.type === 'price' || el.type === 'promotion') && (
                           <div className="mt-3">
                             <label className="block text-xs text-gray-500 mb-1">Text</label>
                             <textarea
@@ -1280,7 +1308,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
 
                         {/* Typography */}
-                        {(el.type === 'text' || el.type === 'price' || el.type === 'promotion' || el.type === 'shape') && (
+                        {(el.type === 'text' || el.type === 'price' || el.type === 'promotion') && (
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             <div>
                               <label className="block text-xs text-gray-500 mb-1">Font Size</label>
@@ -1319,6 +1347,22 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                                 <option value="Helvetica">Helvetica</option>
                               </select>
                             </div>
+                          </div>
+                        )}
+
+                        {el.type === 'shape' && (
+                          <div className="mt-3">
+                            <label className="block text-xs text-gray-500 mb-1">Shape Type</label>
+                            <select
+                              value={el.shapeType || 'rectangle'}
+                              onChange={(e) => updateElement(id, { shapeType: e.target.value as any }, true)}
+                              className="w-full p-2 border border-gray-300 rounded text-sm"
+                            >
+                              <option value="rectangle">Rectangle</option>
+                              <option value="circle">Circle</option>
+                              <option value="triangle">Triangle</option>
+                              <option value="star">Star</option>
+                            </select>
                           </div>
                         )}
 
@@ -1530,15 +1574,40 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                       boxShadow: el.shadow,
                     }}
                   >
-                    {el.type === "text" ||
-                      el.type === "price" ||
-                      el.type === "promotion" ||
-                      el.type === "shape" ? (
+                    {el.type === "text" || el.type === "price" || el.type === "promotion" ? (
                       <div
                         className="w-full h-full flex items-center justify-center text-center leading-tight"
                         style={{ whiteSpace: "pre-line", backgroundColor: "transparent" }}
                       >
                         {el.content}
+                      </div>
+                    ) : el.type === "shape" ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        {el.shapeType === "rectangle" && (
+                          <div className="w-full h-full" style={{ backgroundColor: el.backgroundColor, borderRadius: el.borderRadius }} />
+                        )}
+                        {el.shapeType === "circle" && (
+                          <div className="w-full h-full rounded-full" style={{ backgroundColor: el.backgroundColor }} />
+                        )}
+                        {el.shapeType === "triangle" && (
+                          <div
+                            style={{
+                              width: 0,
+                              height: 0,
+                              borderLeft: `${el.width / 2}px solid transparent`,
+                              borderRight: `${el.width / 2}px solid transparent`,
+                              borderBottom: `${el.height}px solid ${el.backgroundColor}`,
+                            }}
+                          />
+                        )}
+                        {el.shapeType === "star" && (
+                          <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+                            <polygon
+                              points="50,5 61,39 98,39 67,59 79,91 50,72 21,91 33,59 2,39 39,39"
+                              fill={el.backgroundColor}
+                            />
+                          </svg>
+                        )}
                       </div>
                     ) : el.type === "image" ? (
                       <div

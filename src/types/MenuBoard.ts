@@ -2,23 +2,27 @@ export type ElementType = 'text' | 'image' | 'shape' | 'price' | 'promotion';
 
 export interface MenuBoardElement {
   id: string;
-  type: ElementType;
+  type: 'text' | 'image' | 'price' | 'promotion' | 'shape';
+  shapeType?: 'rectangle' | 'circle' | 'triangle' | 'star';  // 👈 add this
   x: number;
   y: number;
   width: number;
   height: number;
-  rotation: number;
-  content: string;
+  content?: string;
+  fontSize?: number;
+  fontWeight?: string;
+  fontFamily?: string;
   color?: string;
   backgroundColor?: string;
-  fontSize?: number;
-  fontFamily?: string;
-  fontWeight?: 'normal' | 'bold';
-  textAlign?: 'left' | 'center' | 'right';
+  borderRadius?: number;
   imageUrl?: string;
-  price?: string;
+  zIndex?: number;
+  rotation?: number;
+  opacity?: number;
+  shadow?: string;
   textShadow?: string;
 }
+
 
 export interface CanvasSize {
   id: string;
