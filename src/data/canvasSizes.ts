@@ -1,36 +1,29 @@
 import { CanvasSize } from '../types/MenuBoard';
 
 export const canvasSizes: CanvasSize[] = [
+  // Simple, common TV sizes with clear names
   {
-    id: 'tv-16-9',
-    name: 'TV 16:9',
+    id: 'tv-1080p-landscape',
+    name: 'Full HD (1920×1080)',
     width: 1920,
     height: 1080,
     aspectRatio: '16:9',
     category: 'tv',
   },
   {
-    id: 'tv-9-16',
-    name: 'TV 9:16',
-    width: 1080,
-    height: 1920,
-    aspectRatio: '9:16',
+    id: 'tv-720p-landscape',
+    name: 'HD (1280×720)',
+    width: 1280,
+    height: 720,
+    aspectRatio: '16:9',
     category: 'tv',
   },
   {
-    id: 'tablet',
-    name: 'Tablet',
-    width: 1200,
-    height: 1920,
-    aspectRatio: '5:8',
-    category: 'tablet',
-  },
-  {
-    id: 'mobile',
-    name: 'Mobile',
-    width: 720,
-    height: 1280,
-    aspectRatio: '9:16',
-    category: 'mobile',
+    id: 'tv-1366-landscape',
+    name: '1366×768',
+    width: 1366,
+    height: 768,
+    aspectRatio: '16:9',
+    category: 'tv',
   },
 ];
