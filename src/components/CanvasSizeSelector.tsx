@@ -44,13 +44,13 @@ export const CanvasSizeSelector: React.FC<CanvasSizeSelectorProps> = ({
   }, {} as Record<string, CanvasSize[]>);
 
   return (
-    <div className="p-10">
+    <div className="p-10" id="canvas-select-root">
       <div className="text-center mb-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Choose Your Display</h2>
         <p className="text-base text-gray-600">Select the perfect size for your digital menu board</p>
       </div>
 
-      <div className="mb-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100">
+      <div className="mb-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100" id="canvas-select-orientation">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-gray-800">Display Orientation</h3>
           <div className="text-sm text-gray-600">Choose how your display will be mounted</div>
@@ -75,7 +75,7 @@ export const CanvasSizeSelector: React.FC<CanvasSizeSelectorProps> = ({
         </div>
       </div>
       
-      <div className="space-y-8">
+      <div className="space-y-8" id="canvas-select-grid">
         {Object.entries(groupedSizes).map(([category, sizesInCategory]) => (
           <div key={category}>
             <div className="flex items-center justify-center mb-8">

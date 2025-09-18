@@ -1752,79 +1752,79 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
         {/* Quick tools bar */}
         {selected && (
-          <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200">
+          <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200 z-[9999]">
             <button title="Decrease font" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); updateElement(el.id, { fontSize: Math.max(1, (el.fontSize || 16) - 2) }, true); }}>
-              <Minus className="w-5 h-5 text-gray-900" />
+              <Minus className="w-7 h-7 text-gray-900" />
             </button>
             <button title="Increase font" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); updateElement(el.id, { fontSize: (el.fontSize || 16) + 2 }, true); }}>
-              <Plus className="w-5 h-5 text-gray-900" />
+              <Plus className="w-7 h-7 text-gray-900" />
             </button>
             {(el.type === 'text' || el.type === 'price' || el.type === 'promotion') && (
               <>
                 <button title="Toggle bold" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); updateElement(el.id, { fontWeight: el.fontWeight === 'bold' ? 'normal' : 'bold' }, true); }}>
-                  <BoldIcon className="w-5 h-5 text-gray-900" />
+                  <BoldIcon className="w-7 h-7 text-gray-900" />
                 </button>
                 <button title="Cycle text layout" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); const next = el.textLayout === 'straight' ? 'arc' : el.textLayout === 'arc' ? 'circle' : 'straight'; updateElement(el.id, { textLayout: next as any }, true); }}>
-                  <CircleIcon className="w-5 h-5 text-gray-900" />
+                  <CircleIcon className="w-7 h-7 text-gray-900" />
                 </button>
               </>
             )}
             <button title={el.locked ? 'Unlock' : 'Lock'} className={`p-1 rounded ${el.locked ? 'bg-yellow-200' : 'hover:bg-gray-200'}`} onClick={(e) => { e.stopPropagation(); updateElement(el.id, { locked: !el.locked }, true); }}>
-              {el.locked ? <UnlockIcon className="w-5 h-5 text-gray-900" /> : <LockIcon className="w-5 h-5 text-gray-900" />}
+              {el.locked ? <UnlockIcon className="w-7 h-7 text-gray-900" /> : <LockIcon className="w-7 h-7 text-gray-900" />}
             </button>
             <button title="Copy (Ctrl+C)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); copySelectedElements(); }}>
-              <Copy className="w-5 h-5 text-gray-900" />
+              <Copy className="w-7 h-7 text-gray-900" />
             </button>
             <button title="Paste (Ctrl+V)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); pasteElements(); }} disabled={clipboard.length === 0}>
-              <Clipboard className="w-5 h-5 text-gray-900" />
+              <Clipboard className="w-7 h-7 text-gray-900" />
             </button>
             <button title="Duplicate (Ctrl+D)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); duplicateSelectedElements(); }}>
-              <Copy className="w-5 h-5 text-gray-900" />
+              <Copy className="w-7 h-7 text-gray-900" />
             </button>
             <button title="Delete (Del)" className="p-1 rounded hover:bg-red-200 text-red-700" onClick={(e) => { e.stopPropagation(); setSelectedIds([el.id]); deleteSelected(); }}>
-              <Trash2 className="w-5 h-5 text-gray-900" />
+              <Trash2 className="w-7 h-7 text-gray-900" />
             </button>
           </div>
         )}
 
         {/* Multi-select quick tools */}
         {selectedIds.length > 1 && (
-          <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200">
+          <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200 z-[9999]">
             <button title="Align Left" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); alignElements('left'); }}>
-              <AlignLeft className="w-5 h-5 text-gray-900" />
+              <AlignLeft className="w-7 h-7 text-gray-900" />
             </button>
             <button title="Align Center" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); alignElements('center'); }}>
-              <AlignCenter className="w-5 h-5 text-gray-900" />
+              <AlignCenter className="w-7 h-7 text-gray-900" />
             </button>
             <button title="Align Right" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); alignElements('right'); }}>
-              <AlignRight className="w-5 h-5" />
+              <AlignRight className="w-7 h-7" />
             </button>
             <button title="Align Top" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); alignElements('top'); }}>
-              <AlignCenterVertical className="w-5 h-5" />
+              <AlignCenterVertical className="w-7 h-7" />
             </button>
             <button title="Align Middle" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); alignElements('middle'); }}>
-              <AlignCenterVertical className="w-5 h-5" />
+              <AlignCenterVertical className="w-7 h-7" />
             </button>
             <button title="Distribute Horizontally" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); distributeElements('horizontal'); }}>
-              <AlignHorizontalDistributeCenter className="w-5 h-5" />
+              <AlignHorizontalDistributeCenter className="w-7 h-7" />
             </button>
             <button title="Distribute Vertically" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); distributeElements('vertical'); }}>
-              <AlignVerticalDistributeCenter className="w-5 h-5" />
+              <AlignVerticalDistributeCenter className="w-7 h-7" />
             </button>
             <button title="Copy (Ctrl+C)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); copySelectedElements(); }}>
-              <Copy className="w-5 h-5" />
+              <Copy className="w-7 h-7" />
             </button>
             <button title="Paste (Ctrl+V)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); pasteElements(); }} disabled={clipboard.length === 0}>
-              <Clipboard className="w-5 h-5" />
+              <Clipboard className="w-7 h-7" />
             </button>
             <button title="Duplicate (Ctrl+D)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); duplicateSelectedElements(); }}>
-              <Copy className="w-5 h-5" />
+              <Copy className="w-7 h-7" />
             </button>
             <button title="Group (Ctrl+G)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); groupElements(); }}>
-              <Group className="w-5 h-5" />
+              <Group className="w-7 h-7" />
             </button>
             <button title="Ungroup (Ctrl+Shift+G)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); ungroupElements(); }}>
-              <Ungroup className="w-5 h-5" />
+              <Ungroup className="w-7 h-7" />
             </button>
           </div>
         )}
@@ -1837,7 +1837,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   return (
     <div className="h-screen bg-gray-100 flex">
       {/* Left Toolbar */}
-      <div className="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-4 relative">
+      <div id="editor-left-toolbar" className="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-4 relative">
         <button
           onClick={() => addElement('text')}
           className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
@@ -1862,7 +1862,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         </button>
 
           {showShapePicker && (
-            <div className="fixed left-16 top-24 z-50 bg-white rounded-lg shadow-2xl border border-gray-200 p-3 w-56">
+            <div className="fixed left-16 top-24 z-50 bg-white rounded-lg shadow-2xl border border-gray-200 p-3 w-56" id="editor-shape-picker">
               <div className="text-xs font-medium text-gray-700 mb-2">Add Shape</div>
               {/* Quick color presets */}
               <div className="mb-2 flex items-center gap-2">
@@ -1961,7 +1961,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             <div className="h-6 w-px bg-gray-300" />
             <h1 className="text-lg font-semibold text-gray-900">{template.name}</h1>
           </div>
-          <div className="flex items-center space-x-3">
+          <div id="editor-header-actions" className="flex items-center space-x-3">
             <button 
               onClick={() => setShowTemplateSettings(true)} 
               className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
@@ -2032,7 +2032,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center space-x-4 flex-shrink-0">
+        <div id="editor-top-toolbar" className="bg-white border-b border-gray-200 px-4 py-2 flex items-center space-x-4 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setShowGrid(!showGrid)}
@@ -2065,7 +2065,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
         <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* Canvas Area */}
-          <div className="flex-1 overflow-auto bg-gray-200 p-4">
+          <div id="editor-canvas-area" className="flex-1 overflow-auto bg-gray-200 p-4">
             <div className="mx-auto max-w-max">
               {/* Wrapper sized to scaled dimensions so scrollbars reflect zoom */}
               <div
@@ -2151,7 +2151,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           </div>
 
           {/* Right Properties Panel */}
-          <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto flex-shrink-0">
+          <div id="editor-right-properties" className="w-80 bg-white border-l border-gray-200 overflow-y-auto flex-shrink-0">
             <div className="p-4 h-full overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Properties</h3>

@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
+import IntroTour from './components/IntroTour';
 import { CanvasSizeSelector } from './components/CanvasSizeSelector';
 import { MenuBoardGallery } from './components/MenuBoardGallery';
 import type { MenuBoardTemplate, CanvasSize } from './types/MenuBoard';
@@ -18,6 +19,9 @@ export default function App() {
   const [templates, setTemplates] = useState<MenuBoardTemplate[]>([]);
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [isLoading, setIsLoading] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
+  const [introIndex, setIntroIndex] = useState(0);
+  const [introScope, setIntroScope] = useState<'editor' | 'canvas' | 'gallery'>('editor');
 
   useEffect(() => {
     setIsLoading(true);
@@ -27,6 +31,49 @@ export default function App() {
       setIsLoading(false);
     }, 2000); // Extended to 2 seconds
   }, []);
+
+  // Show intro on first visit to editor
+  useEffect(() => {
+    if (currentState === 'editor') {
+      const seen = localStorage.getItem('intro_seen');
+      if (!seen) {
+        // Small delay to allow editor DOM to mount
+        setTimeout(() => {
+          console.log('[IntroTour] showing intro');
+          setShowIntro(true);
+          setIntroIndex(0);
+          setIntroScope('editor');
+        }, 300);
+      }
+    }
+  }, [currentState]);
+
+  // Optional: intro for canvas selection and gallery
+  useEffect(() => {
+    if (currentState === 'canvas-selection') {
+      const seen = localStorage.getItem('intro_seen_canvas');
+      if (!seen) {
+        setTimeout(() => {
+          setIntroScope('canvas');
+          setShowIntro(true);
+          setIntroIndex(0);
+        }, 800); // Increased delay to ensure DOM is ready
+      }
+    }
+  }, [currentState]);
+
+  useEffect(() => {
+    if (currentState === 'template-gallery') {
+      const seen = localStorage.getItem('intro_seen_gallery');
+      if (!seen) {
+        setTimeout(() => {
+          setIntroScope('gallery');
+          setShowIntro(true);
+          setIntroIndex(0);
+        }, 800); // Increased delay to match canvas selection
+      }
+    }
+  }, [currentState]);
 
   const handleCanvasSizeSelect = (size: CanvasSize) => {
     setIsLoading(true);
@@ -153,7 +200,111 @@ export default function App() {
           />
         )}
         {currentState === 'editor' && selectedTemplate && (
-          <MenuBoardEditor template={selectedTemplate} onBack={handleBackToTemplateGallery} onSave={handleSaveTemplate} />
+          <>
+            <MenuBoardEditor template={selectedTemplate} onBack={handleBackToTemplateGallery} onSave={handleSaveTemplate} />
+            {/* Restart tour button */}
+            <button
+              onClick={() => { localStorage.removeItem('intro_seen'); setShowIntro(true); setIntroIndex(0); }}
+              className="fixed bottom-4 right-4 z-[900] px-3 py-2 rounded-lg bg-white/90 backdrop-blur border border-gray-200 shadow hover:bg-white"
+              title="Show Intro"
+            >
+              Show Tour
+            </button>
+            {showIntro && introScope === 'editor' && (
+              <IntroTour
+                steps={[
+                  {
+                    id: 'topbar',
+                    targetSelector: '#editor-top-toolbar',
+                    title: 'Editor Toolbar',
+                    description: 'Toggle grid/rulers for precision, view selection count, and access canvas controls.',
+                    placement: 'bottom',
+                  },
+                  {
+                    id: 'left',
+                    targetSelector: '#editor-left-toolbar',
+                    title: 'Add Elements',
+                    description: 'Add text, images, shapes, prices, or promotions. Click any tool to start adding content.',
+                    placement: 'right',
+                  },
+                  {
+                    id: 'canvas',
+                    targetSelector: '#editor-canvas-area',
+                    title: 'Design Canvas',
+                    description: 'Drag, resize, rotate elements. Use guides and snap-to-grid for precision alignment. Right-click for context menu.',
+                    placement: 'right',
+                  },
+                  {
+                    id: 'right',
+                    targetSelector: '#editor-right-properties',
+                    title: 'Properties Panel',
+                    description: 'Select any element to customize colors, fonts, shadows, strokes, and more.',
+                    placement: 'left',
+                  },
+                  {
+                    id: 'header-actions',
+                    targetSelector: '#editor-header-actions',
+                    title: 'Save & Export',
+                    description: 'Download PNG for display, export JSON for backup, or save template. Use zoom controls and preview.',
+                    placement: 'bottom',
+                  },
+                ]}
+                currentIndex={introIndex}
+                onNext={() => {
+                  if (introIndex < 4) {
+                    setIntroIndex(introIndex + 1);
+                  } else {
+                    setShowIntro(false);
+                    localStorage.setItem('intro_seen', '1');
+                  }
+                }}
+                onPrev={() => setIntroIndex(Math.max(0, introIndex - 1))}
+                onClose={() => {
+                  setShowIntro(false);
+                  localStorage.setItem('intro_seen', '1');
+                }}
+              />
+            )}
+          </>
+        )}
+
+        {/* Canvas selection intro */}
+        {showIntro && introScope === 'canvas' && currentState === 'canvas-selection' && (
+          <IntroTour
+            steps={[
+              { id: 'canvas-orientation', targetSelector: '#canvas-select-orientation', title: 'Display Orientation', description: 'Choose landscape (wide) or portrait (tall) for your TV. This sets how content will display.', placement: 'bottom' },
+              { id: 'canvas-grid', targetSelector: '#canvas-select-grid', title: 'TV Size Selection', description: 'Pick your display size. All options are optimized for digital signage and adapt to your orientation.', placement: 'bottom' },
+            ]}
+            currentIndex={introIndex}
+            onNext={() => {
+              if (introIndex < 1) setIntroIndex(introIndex + 1);
+              else { setShowIntro(false); localStorage.setItem('intro_seen_canvas', '1'); }
+            }}
+            onPrev={() => setIntroIndex(Math.max(0, introIndex - 1))}
+            onClose={() => { setShowIntro(false); localStorage.setItem('intro_seen_canvas', '1'); }}
+          />
+        )}
+
+        {/* Gallery intro */}
+        {showIntro && introScope === 'gallery' && currentState === 'template-gallery' && (
+          <IntroTour
+            steps={[
+              { id: 'gallery-header', targetSelector: '#gallery-root', title: 'Template Gallery', description: 'Choose from professional templates or start blank. All templates are optimized for your display size.', placement: 'bottom' },
+              { id: 'gallery-blank', targetSelector: '#gallery-blank-template', title: 'Blank Template', description: 'Start from scratch with complete creative freedom. Perfect for custom designs.', placement: 'right' },
+              { id: 'gallery-templates', targetSelector: '#gallery-template-cards', title: 'Professional Templates', description: 'Ready-made designs for restaurants. Use "Preview" to see designs or "Start Editing" to customize.', placement: 'top' },
+            ]}
+            currentIndex={introIndex}
+            onNext={() => {
+              if (introIndex < 2) {
+                setIntroIndex(introIndex + 1);
+              } else {
+                setShowIntro(false);
+                localStorage.setItem('intro_seen_gallery', '1');
+              }
+            }}
+            onPrev={() => setIntroIndex(Math.max(0, introIndex - 1))}
+            onClose={() => { setShowIntro(false); localStorage.setItem('intro_seen_gallery', '1'); }}
+          />
         )}
       </Suspense>
     </ErrorBoundary>

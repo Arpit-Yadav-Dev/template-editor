@@ -214,7 +214,7 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" id="gallery-root">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -246,9 +246,10 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div id="gallery-template-cards" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Blank Template Card */}
             <div
+              id="gallery-blank-template"
               className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 cursor-pointer transform hover:-translate-y-2 flex flex-col"
             >
               <div className="relative h-64 flex items-center justify-center bg-gray-100 border-4 border-dashed border-gray-300 text-gray-500">
