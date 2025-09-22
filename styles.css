@@ -1,0 +1,25 @@
+/* External CSS file for two-file import example */
+
+body {
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+.menu-item {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.price {
+    float: right;
+    font-weight: bold;
+    color: #ff6b35;
+}
+
+.description {
+    font-size: 16px;
+    color: #ddd;
+    margin-top: 4px;
+}
+
+/* Additional styling can go here */

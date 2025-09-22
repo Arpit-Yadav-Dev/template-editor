@@ -51,6 +51,9 @@ export interface MenuBoardElement {
   // Shape stroke properties
   strokeWidth?: number;
   strokeColor?: string;
+  // Transform properties
+  scaleX?: number;
+  scaleY?: number;
 }
 
 
@@ -88,4 +91,5 @@ export interface MenuBoardTemplate {
   isHorizontal: boolean;
   elements: MenuBoardElement[];
   groups: MenuBoardGroup[];
+  previewImageUrl?: string; // URL to the PNG preview image
 }

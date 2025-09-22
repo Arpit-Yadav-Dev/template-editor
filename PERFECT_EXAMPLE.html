@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Perfect Menu Example</title>
+    <style>
+        /* All CSS embedded in HTML - this is the recommended approach */
+        body {
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .menu-item {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .price {
+            float: right;
+            font-weight: bold;
+            color: #ff6b35;
+        }
+        
+        .description {
+            font-size: 16px;
+            color: #ddd;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body style="width:1920px; height:1080px; margin:0; background:#1a0b2e; color:white; font-family:Arial, sans-serif;">
+
+    <!-- Background Left Orange Panel -->
+    <div style="position:absolute; left:0px; top:0px; width:820px; height:1080px; background:#f4511e; border-radius:40px 0 0 40px;"></div>
+
+    <!-- Title GRILL -->
+    <div style="position:absolute; left:60px; top:60px; width:400px; height:120px;">
+        <span style="font-size:120px; font-weight:bold; color:#fff;">GRILL</span>
+    </div>
+
+    <!-- Menu Button -->
+    <div style="position:absolute; left:60px; top:220px; width:150px; height:60px; background:#fff; border-radius:10px; text-align:center; line-height:60px; color:#000; font-weight:bold; font-size:28px;">
+        MENU
+    </div>
+
+    <!-- Appetizers Header -->
+    <div style="position:absolute; left:60px; top:320px; width:400px; height:60px;">
+        <span style="font-size:48px; font-weight:bold; color:#fff;">Appetizers</span>
+    </div>
+
+    <!-- Appetizer Items -->
+    <div style="position:absolute; left:60px; top:400px; width:700px; height:220px; font-size:24px; line-height:48px;">
+        <div class="menu-item">
+            <b>TIGER SHRIMP + ROASTED CORN TAMALE</b> 
+            <span class="price">20</span>
+        </div>
+        <div class="description">Con-Cilantro Sauce</div><br>
+        
+        <div class="menu-item">
+            <b>SMOKED CHICKEN + BLACK BEAN QUESADILLA</b> 
+            <span class="price">18</span>
+        </div>
+        <div class="description">Avocado + Toasted Garlic Creme Fraiche</div><br>
+        
+        <div class="menu-item">
+            <b>SOUTHWESTERN CAESAR SALAD</b> 
+            <span class="price">17</span>
+        </div>
+        <div class="description">Little Gem, Baby Kale Cotija, Garlic Croutons + Chorizo</div>
+    </div>
+
+    <!-- Entrees Header -->
+    <div style="position:absolute; left:860px; top:60px; width:400px; height:60px;">
+        <span style="font-size:48px; font-weight:bold; color:#f4511e;">Entrees ✦</span>
+    </div>
+
+    <!-- Entree Items -->
+    <div style="position:absolute; left:860px; top:140px; width:650px; height:400px; font-size:24px; line-height:42px;">
+        <div class="menu-item">
+            <b>CORNMEAL CRUSTED CHILE RELLENO</b> 
+            <span class="price">20</span>
+        </div>
+        <div class="description">Porcini Mushrooms, Cotija + Sun Dried Chile Sauce</div><br>
+        
+        <div class="menu-item">
+            <b>CERTIFIED ANGUS BEEF*FILET MIGNON</b> 
+            <span class="price">54</span>
+        </div>
+        <div class="description">Mushroom – Ancho Chile Sauce</div><br>
+        
+        <div class="menu-item">
+            <b>NEW MEXICAN SPICE RUBBED PORK TENDERLOIN</b> 
+            <span class="price">39</span>
+        </div>
+        <div class="description">Bourbon – Ancho Chile Sauce + Sweet Potato Tamale With Crushed Pecan Butter</div><br>
+        
+        <div class="menu-item">
+            <b>FIRE ROASTED VEAL CHOP</b> 
+            <span class="price">52</span>
+        </div>
+        <div class="description">+Chorizo – Goat Cheese Tamale With Thyme Butter</div>
+    </div>
+
+    <!-- Sides Header -->
+    <div style="position:absolute; left:1560px; top:60px; width:200px; height:60px;">
+        <span style="font-size:48px; font-weight:bold; color:#fff;">Sides</span>
+    </div>
+
+    <!-- Sides Items -->
+    <div style="position:absolute; left:1560px; top:140px; width:300px; height:200px; font-size:24px; line-height:42px;">
+        <div class="menu-item">
+            <b>CILANTRO PESTO MASHED POTATOES</b> 
+            <span class="price">12</span>
+        </div><br>
+        <div class="menu-item">
+            <b>SAUTEED SPINACH</b> 
+            <span class="price">12</span>
+        </div>
+    </div>
+
+    <!-- Sides Image -->
+    <div style="position:absolute; left:1560px; top:320px; width:300px; height:200px;">
+        <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=300&h=200&fit=crop" alt="Sides Image" style="width:300px; height:200px; border-radius:20px;">
+    </div>
+
+    <!-- Desserts Header -->
+    <div style="position:absolute; left:1560px; top:560px; width:300px; height:60px;">
+        <span style="font-size:48px; font-weight:bold; color:#fff;">Desserts</span>
+    </div>
+
+    <!-- Desserts Items -->
+    <div style="position:absolute; left:1560px; top:640px; width:350px; height:200px; font-size:24px; line-height:42px;">
+        <div class="menu-item">
+            <b>CHOCOLATE STICKY TOFFEE PUDDING</b> 
+            <span class="price">14</span>
+        </div>
+        <div class="description">Chocolate Vanilla Swirl Ice Cream + Salted Cajeta</div><br>
+        
+        <div class="menu-item">
+            <b>TOASTED COCONUT LAYER CAKE</b> 
+            <span class="price">14</span>
+        </div>
+        <div class="description">Coconut Creme Anglaise</div>
+    </div>
+
+    <!-- Logo Placeholder -->
+    <div style="position:absolute; left:1720px; top:20px; width:160px; height:60px; background:#333; border-radius:20px; text-align:center; line-height:60px;">
+        <span style="font-size:20px;">theoutdoorgrill</span>
+    </div>
+
+</body>
+</html>

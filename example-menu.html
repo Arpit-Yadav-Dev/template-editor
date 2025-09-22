@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Sample Restaurant Menu</title>
+    <style>
+        /* Embedded CSS - this will be automatically detected and used */
+        body {
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .menu-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .price {
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .special-offer {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body style="width: 1920px; height: 1080px; margin: 0; padding: 0; background: linear-gradient(to bottom, #f8f9fa, #e9ecef); font-family: Arial, sans-serif;">
+    
+    <!-- Header -->
+    <div style="position: absolute; left: 0; top: 0; width: 1920px; height: 120px; background: #2c3e50;">
+        <h1 style="position: absolute; left: 100px; top: 20px; color: white; font-size: 48px; font-family: Arial, sans-serif; margin: 0; font-weight: bold;">RESTAURANT NAME</h1>
+        <p style="position: absolute; left: 100px; top: 80px; color: #bdc3c7; font-size: 18px; margin: 0;">Fresh Ingredients • Authentic Flavors</p>
+    </div>
+
+    <!-- Menu Item 1 -->
+    <div class="menu-item" style="position: absolute; left: 100px; top: 160px; width: 800px; height: 200px; background: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=150&fit=crop" 
+             style="position: absolute; left: 20px; top: 25px; width: 200px; height: 150px; border-radius: 8px; object-fit: cover;"
+             alt="Classic Burger">
+        <h3 style="position: absolute; left: 240px; top: 25px; font-size: 24px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">CLASSIC BURGER</h3>
+        <p style="position: absolute; left: 240px; top: 60px; font-size: 16px; font-family: Arial, sans-serif; margin: 0; color: #666; width: 400px; line-height: 1.4;">Juicy beef patty with fresh lettuce, tomato, onion, pickles, and our signature sauce on a toasted brioche bun</p>
+        <span class="price" style="position: absolute; right: 20px; top: 25px; font-size: 28px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$12.99</span>
+    </div>
+
+    <!-- Menu Item 2 -->
+    <div style="position: absolute; left: 100px; top: 380px; width: 800px; height: 200px; background: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=150&fit=crop" 
+             style="position: absolute; left: 20px; top: 25px; width: 200px; height: 150px; border-radius: 8px; object-fit: cover;"
+             alt="Bacon Cheeseburger">
+        <h3 style="position: absolute; left: 240px; top: 25px; font-size: 24px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">BACON CHEESEBURGER</h3>
+        <p style="position: absolute; left: 240px; top: 60px; font-size: 16px; font-family: Arial, sans-serif; margin: 0; color: #666; width: 400px; line-height: 1.4;">Double beef patty with crispy bacon, melted cheddar cheese, lettuce, tomato, and our signature BBQ sauce</p>
+        <span style="position: absolute; right: 20px; top: 25px; font-size: 28px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$15.99</span>
+    </div>
+
+    <!-- Menu Item 3 -->
+    <div style="position: absolute; left: 100px; top: 600px; width: 800px; height: 200px; background: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=150&fit=crop" 
+             style="position: absolute; left: 20px; top: 25px; width: 200px; height: 150px; border-radius: 8px; object-fit: cover;"
+             alt="Veggie Burger">
+        <h3 style="position: absolute; left: 240px; top: 25px; font-size: 24px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">VEGGIE BURGER</h3>
+        <p style="position: absolute; left: 240px; top: 60px; font-size: 16px; font-family: Arial, sans-serif; margin: 0; color: #666; width: 400px; line-height: 1.4;">Plant-based patty with avocado, sprouts, tomato, red onion, and vegan mayo on a whole grain bun</p>
+        <span style="position: absolute; right: 20px; top: 25px; font-size: 28px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$11.99</span>
+    </div>
+
+    <!-- Side Items Section -->
+    <div style="position: absolute; left: 1000px; top: 160px; width: 820px; height: 640px; background: rgba(52, 73, 94, 0.1); border-radius: 15px; border: 2px solid #34495e;">
+        <h2 style="position: absolute; left: 20px; top: 20px; font-size: 32px; font-family: Arial, sans-serif; margin: 0; color: #2c3e50; font-weight: bold;">SIDES & EXTRAS</h2>
+        
+        <!-- Fries -->
+        <div style="position: absolute; left: 40px; top: 80px; width: 740px; height: 80px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <img src="https://images.unsplash.com/photo-1576107232684-1279f390859f?w=80&h=60&fit=crop" 
+                 style="position: absolute; left: 15px; top: 10px; width: 80px; height: 60px; border-radius: 4px; object-fit: cover;"
+                 alt="French Fries">
+            <h4 style="position: absolute; left: 110px; top: 15px; font-size: 18px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">CRISPY FRIES</h4>
+            <p style="position: absolute; left: 110px; top: 40px; font-size: 14px; font-family: Arial, sans-serif; margin: 0; color: #666;">Golden crispy fries with sea salt</p>
+            <span style="position: absolute; right: 15px; top: 15px; font-size: 20px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$4.99</span>
+        </div>
+
+        <!-- Onion Rings -->
+        <div style="position: absolute; left: 40px; top: 180px; width: 740px; height: 80px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=80&h=60&fit=crop" 
+                 style="position: absolute; left: 15px; top: 10px; width: 80px; height: 60px; border-radius: 4px; object-fit: cover;"
+                 alt="Onion Rings">
+            <h4 style="position: absolute; left: 110px; top: 15px; font-size: 18px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">ONION RINGS</h4>
+            <p style="position: absolute; left: 110px; top: 40px; font-size: 14px; font-family: Arial, sans-serif; margin: 0; color: #666;">Crispy beer-battered onion rings</p>
+            <span style="position: absolute; right: 15px; top: 15px; font-size: 20px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$5.99</span>
+        </div>
+
+        <!-- Soft Drinks -->
+        <div style="position: absolute; left: 40px; top: 280px; width: 740px; height: 80px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=80&h=60&fit=crop" 
+                 style="position: absolute; left: 15px; top: 10px; width: 80px; height: 60px; border-radius: 4px; object-fit: cover;"
+                 alt="Soft Drinks">
+            <h4 style="position: absolute; left: 110px; top: 15px; font-size: 18px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">SOFT DRINKS</h4>
+            <p style="position: absolute; left: 110px; top: 40px; font-size: 14px; font-family: Arial, sans-serif; margin: 0; color: #666;">Coca-Cola, Pepsi, Sprite, and more</p>
+            <span style="position: absolute; right: 15px; top: 15px; font-size: 20px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$2.99</span>
+        </div>
+
+        <!-- Milkshakes -->
+        <div style="position: absolute; left: 40px; top: 380px; width: 740px; height: 80px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=80&h=60&fit=crop" 
+                 style="position: absolute; left: 15px; top: 10px; width: 80px; height: 60px; border-radius: 4px; object-fit: cover;"
+                 alt="Milkshakes">
+            <h4 style="position: absolute; left: 110px; top: 15px; font-size: 18px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">MILKSHAKES</h4>
+            <p style="position: absolute; left: 110px; top: 40px; font-size: 14px; font-family: Arial, sans-serif; margin: 0; color: #666;">Vanilla, chocolate, strawberry, and cookies & cream</p>
+            <span style="position: absolute; right: 15px; top: 15px; font-size: 20px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$4.99</span>
+        </div>
+
+        <!-- Salads -->
+        <div style="position: absolute; left: 40px; top: 480px; width: 740px; height: 80px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=80&h=60&fit=crop" 
+                 style="position: absolute; left: 15px; top: 10px; width: 80px; height: 60px; border-radius: 4px; object-fit: cover;"
+                 alt="Caesar Salad">
+            <h4 style="position: absolute; left: 110px; top: 15px; font-size: 18px; font-family: Arial, sans-serif; margin: 0; color: #333; font-weight: bold;">CAESAR SALAD</h4>
+            <p style="position: absolute; left: 110px; top: 40px; font-size: 14px; font-family: Arial, sans-serif; margin: 0; color: #666;">Fresh romaine lettuce with caesar dressing and croutons</p>
+            <span style="position: absolute; right: 15px; top: 15px; font-size: 20px; font-family: Arial, sans-serif; font-weight: bold; color: #ff6b35;">$8.99</span>
+        </div>
+    </div>
+
+    <!-- Special Offer Banner -->
+    <div class="special-offer" style="position: absolute; left: 100px; top: 820px; width: 1720px; height: 100px; background: #ff6b35; border-radius: 10px; text-align: center;">
+        <h2 style="color: white; font-size: 36px; font-family: Arial, sans-serif; margin: 0; line-height: 100px; font-weight: bold;">COMBO DEAL: Any burger + fries + drink for $18.99!</h2>
+    </div>
+
+    <!-- Contact Information -->
+    <div style="position: absolute; left: 100px; top: 940px; width: 1720px; height: 60px; text-align: center;">
+        <p style="color: #666; font-size: 18px; font-family: Arial, sans-serif; margin: 0; line-height: 30px;">Open 11AM-10PM Daily | Call (555) 123-4567 | Free Delivery Available</p>
+        <p style="color: #888; font-size: 16px; font-family: Arial, sans-serif; margin: 0;">Fresh Ingredients • Made to Order • Family Owned Since 1995</p>
+    </div>
+
+</body>
+</html>
