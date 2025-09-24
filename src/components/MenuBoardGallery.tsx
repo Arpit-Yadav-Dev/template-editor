@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Eye, Edit, Ruler, X } from 'lucide-react';
 import { MenuBoardTemplate, MenuBoardElement } from '../types/MenuBoard';
+import AnimatedBackground from './AnimatedBackground';
 
 interface CanvasSize {
   width: number;
@@ -141,88 +142,152 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={onBack}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span>Back to Canvas Selection</span>
-            </button>
-            <div className="h-6 w-px bg-gray-300" />
-            <h1 className="text-xl font-semibold text-gray-900">Template Gallery</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-500">
-              {templates.length} templates available
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="text-sm font-medium text-gray-700">
-                Canvas: {selectedCanvasSize.width}×{selectedCanvasSize.height}
+    <AnimatedBackground>
+      <div id="gallery-root" className="relative min-h-screen">
+      {/* Consistent Header */}
+      <div className="relative z-10 bg-white/80 backdrop-blur-sm border-b border-gray-200/50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 flex-1 min-w-0">
+              <button
+                onClick={onBack}
+                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-all duration-200 hover:bg-gray-100 px-3 py-2 rounded-lg group"
+              >
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <span className="font-medium">Back to Canvas Selection</span>
+              </button>
+              <div className="h-6 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent" />
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                  <div className="text-white font-bold text-sm leading-tight">
+                    <div>DS</div>
+                    <div className="text-xs">MOVI</div>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h1 className="text-2xl font-bold text-gray-900">Template Gallery</h1>
+                  <p className="text-sm text-gray-500 mt-1">Choose from professional designs</p>
+                </div>
               </div>
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+            </div>
+            <div className="flex items-center space-x-4 flex-shrink-0">
+              <div className="text-center">
+                <div className="text-sm text-gray-500">Templates Available</div>
+                <div className="text-lg font-bold text-blue-600">{templates.length}</div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-700">
+                    {selectedCanvasSize.width} × {selectedCanvasSize.height}
+                  </div>
+                  <div className="text-xs text-gray-500">Canvas Size</div>
+                </div>
+                <div className={`px-3 py-2 rounded-lg text-sm font-medium shadow-sm ${
+                  selectedCanvasSize.isHorizontal 
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                    : 'bg-violet-100 text-violet-800 border border-violet-200'
+                }`}>
+                  {selectedCanvasSize.isHorizontal ? 'Landscape' : 'Portrait'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-8 py-8">
+        <div className="mb-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">
+              Choose Your Perfect Template
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Start with a professionally designed template or create from scratch. 
+              All templates are optimized for your selected canvas size.
+            </p>
+          </div>
+        </div>
+
+        {/* Canvas Size Info */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Ruler className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Canvas Size</h3>
+                <p className="text-gray-600">{selectedCanvasSize.width} × {selectedCanvasSize.height} pixels</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Aspect Ratio</div>
+                <div className="font-semibold text-gray-900">
+                  {Math.round(selectedCanvasSize.width / selectedCanvasSize.height * 100) / 100}:1
+                </div>
+              </div>
+              <div className={`px-3 py-2 rounded-lg text-sm font-medium ${
                 selectedCanvasSize.isHorizontal 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-purple-100 text-purple-800'
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : 'bg-violet-100 text-violet-800'
               }`}>
                 {selectedCanvasSize.isHorizontal ? 'Landscape' : 'Portrait'}
               </div>
             </div>
           </div>
         </div>
-        </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Choose Your Template
-              </h2>
-              <p className="text-gray-600">
-                Select a professionally designed template to get started quickly
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500">
-                Showing {templates.length} templates
+        {/* Template Grid */}
+        <div id="gallery-template-cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          {/* Blank Template Card */}
+          <div
+            id="gallery-blank-template"
+            key="blank-template"
+            className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"
+            style={{ height: '20rem' }}
+            onClick={() => {
+              const blankTemplate: MenuBoardTemplate = {
+                id: 'blank-' + Date.now(),
+                name: 'Blank Template',
+                category: 'Custom',
+                canvasSize: selectedCanvasSize,
+                elements: [],
+                groups: [],
+                backgroundColor: '#ffffff',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+              onSelectTemplate(blankTemplate);
+            }}
+          >
+            {/* Blank Template Preview */}
+            <div
+              className="relative overflow-hidden bg-gray-50 border-b border-gray-100"
+              style={{
+                height: selectedCanvasSize.isHorizontal ? '10rem' : '14rem',
+              }}
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-3 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors duration-300">
+                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-1">Start from Scratch</h3>
+                  <p className="text-gray-600 text-sm">Create your own design</p>
+                </div>
               </div>
             </div>
-          </div>
-            </div>
 
-        {/* Template Grid - Reverted to compact 3-column layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Canvas Size Info Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 border border-blue-200">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-                <Ruler className="w-6 h-6 text-white" />
-              </div>
+            {/* Template Info */}
+            <div className="p-4 flex-1 flex flex-col justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Canvas Size</h3>
-                <p className="text-sm text-gray-600">{selectedCanvasSize.width}×{selectedCanvasSize.height}</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Dimensions:</span>
-                <span className="font-medium">{selectedCanvasSize.width} × {selectedCanvasSize.height}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Aspect Ratio:</span>
-                <span className="font-medium">{selectedCanvasSize.width}:{selectedCanvasSize.height}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Orientation:</span>
-                <span className={`font-medium ${selectedCanvasSize.isHorizontal ? 'text-green-600' : 'text-purple-600'}`}>
-                  {selectedCanvasSize.isHorizontal ? 'Landscape' : 'Portrait'}
-                </span>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Blank Canvas</h3>
+                <p className="text-gray-600 text-sm">Perfect for custom designs and creative freedom</p>
               </div>
             </div>
           </div>
@@ -230,37 +295,35 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
           {templates.map((template) => (
                 <div
                   key={template.id}
-              className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 hover:scale-[1.02] flex flex-col"
-              style={{ 
-                height: template.isHorizontal ? 'auto' : '28rem' // Revert to previous taller portrait height
-              }}
-            >
-              {/* Template Preview with Mini Render */}
+              className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"
+              style={{ height: '20rem' }}
+                >
+                  {/* Template Preview */}
               <div
-                className="relative overflow-hidden cursor-pointer"
+                className="relative overflow-hidden bg-gray-50 border-b border-gray-100"
                 style={{ 
                   backgroundColor: template.backgroundColor,
-                  height: template.isHorizontal ? '12rem' : '20rem', // Compact card preview sizes
-                  aspectRatio: template.isHorizontal ? '16/9' : '9/16' // Proper aspect ratio
+                  height: template.isHorizontal ? '10rem' : '14rem',
+                  aspectRatio: template.isHorizontal ? '16/9' : '9/16'
                 }}
                 onClick={(e) => { e.stopPropagation(); handlePreviewClick(template); }}
               >
-                {/* Hover Overlay with Action Buttons */}
+                {/* Hover Overlay */}
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
-                  <div className="flex space-x-3">
+                  <div className="flex space-x-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); handlePreviewClick(template); }}
-                      className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-gray-800 shadow-lg hover:bg-white transition-colors flex items-center space-x-2"
+                      className="bg-white/90 px-3 py-2 rounded-lg text-sm font-medium text-gray-800 shadow-lg hover:bg-white transition-colors flex items-center space-x-2"
                     >
                       <Eye className="w-4 h-4" />
                       <span>Preview</span>
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onSelectTemplate(template); }}
-                      className="bg-blue-600/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white shadow-lg hover:bg-blue-600 transition-colors flex items-center space-x-2"
+                      className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm font-medium text-white shadow-lg transition-colors flex items-center space-x-2"
                     >
                       <Edit className="w-4 h-4" />
-                      <span>Edit</span>
+                      <span>Use</span>
                     </button>
                           </div>
                         </div>
@@ -428,86 +491,97 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
                   </div>
                 </div>
 
-                {/* Template Category Badge */}
-                <div className="absolute top-2 left-2 bg-white bg-opacity-90 px-2 py-1 rounded-full text-xs font-medium text-gray-700 capitalize">
+                {/* Template Badges */}
+                <div className="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded-lg text-xs font-medium text-gray-700 capitalize">
                   {template.category}
                 </div>
                 
-                {/* Enhanced Elements Count and Orientation Badge */}
-                <div className="absolute top-2 right-2 flex flex-col gap-1">
-                  <div className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium shadow-sm">
-                    {template.elements.length} elements
+                <div className="absolute top-2 right-2 flex space-x-1">
+                  <div className="bg-blue-500 text-white px-2 py-1 rounded-lg text-xs font-medium">
+                    {template.elements.length}
                   </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium shadow-sm ${
+                  <div className={`px-2 py-1 rounded-lg text-xs font-medium ${
                     template.isHorizontal 
                       ? 'bg-green-500 text-white' 
                       : 'bg-purple-500 text-white'
                   }`}>
-                    {template.isHorizontal ? 'Landscape' : 'Portrait'}
+                    {template.isHorizontal ? 'L' : 'P'}
                       </div>
                     </div>
                   </div>
                   
                   {/* Template Info */}
-              <div className="p-4">
-                <h3 className="text-lg font-bold text-gray-900 mb-1">
+              <div className="p-4 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
                           {template.name}
                         </h3>
-                <p className="text-gray-600 text-sm line-clamp-2">
-                          {template.preview}
-                        </p>
-                        </div>
-                      </div>
-          ))}
+                  <p className="text-gray-600 text-sm">
+                    {template.preview || 'Professional template ready for customization'}
+                  </p>
                     </div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      {/* Preview Modal */}
+      {/* Enhanced Preview Modal */}
       {showPreviewModal && (
         <div
-          className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4"
-          style={{ 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 9999
-          }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowPreviewModal(false);
           }}
         >
           <div 
-            className="relative bg-white rounded-lg shadow-2xl"
+            className="relative bg-white rounded-3xl shadow-2xl border border-gray-200/50 overflow-hidden"
             style={{
-              width: '90vw',
-              height: '90vh',
-              maxWidth: '1200px',
-              maxHeight: '800px',
-              overflow: 'hidden',
+              width: '95vw',
+              height: '95vh',
+              maxWidth: '1400px',
+              maxHeight: '900px',
               display: 'flex',
               flexDirection: 'column'
             }}
           >
             <button
               onClick={() => setShowPreviewModal(false)}
-              className="absolute -top-3 -right-3 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 z-10 shadow-lg border-2 border-white"
+              className="absolute -top-4 -right-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-2xl w-12 h-12 flex items-center justify-center z-10 shadow-xl border-4 border-white transition-all duration-200 hover:scale-110"
               aria-label="Close preview"
             >
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6" />
             </button>
 
-            <div className="p-6 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {previewTemplate?.name || 'Loading Preview...'}
-              </h3>
-              <p className="text-sm text-gray-600">
-                {previewTemplate?.preview || 'Please wait while we generate your preview'}
-              </p>
+            <div className="p-8 border-b border-gray-200/50 flex-shrink-0 bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    {previewTemplate?.name || 'Loading Preview...'}
+          </h3>
+                  <p className="text-gray-600 text-lg">
+                    {previewTemplate?.preview || 'Please wait while we generate your preview'}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Canvas Size</div>
+                    <div className="font-semibold text-gray-900">
+                      {previewTemplate?.canvasSize.width} × {previewTemplate?.canvasSize.height}
+                    </div>
+                  </div>
+                  <div className={`px-4 py-2 rounded-xl text-sm font-semibold ${
+                    previewTemplate?.isHorizontal 
+                      ? 'bg-emerald-100 text-emerald-800' 
+                      : 'bg-violet-100 text-violet-800'
+                  }`}>
+                    {previewTemplate?.isHorizontal ? 'Landscape' : 'Portrait'}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center bg-gray-50 p-6 overflow-hidden">
+            <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50 p-8 overflow-hidden">
               {isPreviewLoading || !previewTemplate ? (
                 <div 
                   className="flex items-center justify-center"
@@ -519,8 +593,9 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
                   }}
                 >
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading preview...</p>
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-6"></div>
+                    <p className="text-gray-600 text-lg font-medium">Loading preview...</p>
+                    <p className="text-gray-500 text-sm mt-2">Please wait while we render your template</p>
                   </div>
                 </div>
               ) : (
@@ -537,16 +612,16 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
                       width: previewTemplate.canvasSize.width,
                       height: previewTemplate.canvasSize.height,
                       transform: `scale(${Math.min(
-                        ((window.innerWidth * 0.9) - 120) / previewTemplate.canvasSize.width,
-                        ((window.innerHeight * 0.9) - 200) / previewTemplate.canvasSize.height,
+                        ((window.innerWidth * 0.95) - 200) / previewTemplate.canvasSize.width,
+                        ((window.innerHeight * 0.95) - 300) / previewTemplate.canvasSize.height,
                         1
                       )})`,
                       transformOrigin: "center center",
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                      border: '3px solid #e5e7eb',
+                      borderRadius: '16px',
+                      boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
                       backgroundColor: '#ffffff',
-                      overflow: 'visible' // Allow content to extend beyond bounds
+                      overflow: 'visible'
                     }}
                   >
                     <PreviewRenderer template={previewTemplate} />
@@ -554,9 +629,25 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
                 </div>
               )}
             </div>
+            
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-200/50 bg-white/50 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  Click outside or press ESC to close
+                </div>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AnimatedBackground>
   );
 };

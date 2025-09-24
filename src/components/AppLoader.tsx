@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loader2, Monitor, Palette, Utensils } from 'lucide-react';
+import DSMOVILoader from './DSMOVILoader';
 
 interface AppLoaderProps {
   message?: string;
@@ -23,32 +24,20 @@ export const AppLoader: React.FC<AppLoaderProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
       <div className="text-center">
-        {/* Main loader with overlay effect */}
-        <div className="mb-8">
-          <div className={`${sizeClasses[size]} mx-auto relative`}>
-            {/* Central icon */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Monitor size={iconSizes[size]} className="text-blue-600" />
-            </div>
-            
-            {/* Rotating overlay ring */}
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-600 animate-spin"></div>
-          </div>
-        </div>
-
-        {/* Loading text */}
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-gray-900">{message}</h2>
-          <p className="text-gray-600">Creating your perfect menu board...</p>
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex justify-center space-x-2 mt-6">
-          <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-          <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-          <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+        {/* DS MOVI Loader */}
+        <DSMOVILoader 
+          size={size} 
+          text={message} 
+          showTips={true}
+          showProgress={true}
+        />
+        
+        {/* Additional loading text */}
+        <div className="mt-6 space-y-2">
+          <h2 className="text-xl font-semibold text-gray-700">Creating your perfect menu board...</h2>
+          <p className="text-sm text-gray-500">Please wait while we prepare everything for you</p>
         </div>
       </div>
     </div>
@@ -70,4 +59,40 @@ export const PreviewLoader: React.FC = () => (
 
 export const EditorLoader: React.FC = () => (
   <AppLoader message="Opening editor..." size="lg" />
+);
+
+// Specialized loader for template loading
+export const TemplateLoadingLoader: React.FC = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+    <div className="text-center">
+      <DSMOVILoader 
+        size="lg" 
+        text="Loading Templates..." 
+        showTips={true}
+        showProgress={true}
+      />
+      <div className="mt-6 space-y-2">
+        <h2 className="text-xl font-semibold text-gray-700">Preparing your template gallery...</h2>
+        <p className="text-sm text-gray-500">We're loading all the professional designs for you</p>
+      </div>
+    </div>
+  </div>
+);
+
+// Specialized loader for saving
+export const SaveLoader: React.FC = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+    <div className="text-center">
+      <DSMOVILoader 
+        size="md" 
+        text="Saving Template..." 
+        showTips={true}
+        showProgress={true}
+      />
+      <div className="mt-6 space-y-2">
+        <h2 className="text-lg font-semibold text-gray-700">Almost done!</h2>
+        <p className="text-sm text-gray-500">Your design is being saved securely</p>
+      </div>
+    </div>
+  </div>
 );

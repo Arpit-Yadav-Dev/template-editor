@@ -54,6 +54,19 @@ export interface MenuBoardElement {
   // Transform properties
   scaleX?: number;
   scaleY?: number;
+  // Shape image properties
+  shapeImageUrl?: string; // Background image for shapes
+  shapeImageFit?: 'cover' | 'contain' | 'fill' | 'fit-width' | 'fit-height'; // How image fits in shape
+  // Element locking
+  locked?: boolean; // Whether element is locked from editing
+}
+
+// Selection rectangle for multi-select
+export interface SelectionRectangle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 

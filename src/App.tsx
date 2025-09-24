@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense, lazy } from 'react';
 import IntroTour from './components/IntroTour';
 import { CanvasSizeSelector } from './components/CanvasSizeSelector';
 import { MenuBoardGallery } from './components/MenuBoardGallery';
+import AnimatedBackground from './components/AnimatedBackground';
 import type { MenuBoardTemplate, CanvasSize } from './types/MenuBoard';
 import { canvasSizes } from './data/canvasSizes';
 import { AppLoader } from './components/AppLoader';
@@ -164,18 +165,22 @@ export default function App() {
     <ErrorBoundary>
       <Suspense fallback={<AppLoader />}>
             {currentState === 'canvas-selection' && (
-              <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-                <div className="max-w-6xl mx-auto px-6 py-16">
-                  <div className="text-center mb-16">
-                    <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-6">
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
+              <AnimatedBackground>
+                <div className="max-w-6xl mx-auto px-6 py-8">
+                  <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl mb-4 shadow-lg">
+                      <div className="text-white font-bold text-sm leading-tight">
+                        <div>DS</div>
+                        <div className="text-xs">MOVI</div>
+                      </div>
                     </div>
-                    <h1 className="text-4xl font-bold text-gray-900 mb-6">Digital Display Designer</h1>
-                    <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">Create stunning, professional display boards for restaurants, cafes, and food outlets. Choose your display size and start designing your perfect digital signage.</p>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Digital Display Designer</h1>
+                    <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                      Create stunning, professional display boards for restaurants, cafes, and food outlets. 
+                      Choose your display size and start designing your perfect digital signage.
+                    </p>
                   </div>
-                  <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-200/50 overflow-hidden">
                     <CanvasSizeSelector
                       sizes={filteredCanvasSizes}
                       selectedSize={selectedCanvasSize}
@@ -185,7 +190,7 @@ export default function App() {
                     />
                   </div>
                 </div>
-              </div>
+              </AnimatedBackground>
             )}
         {currentState === 'template-gallery' && (
           <MenuBoardGallery

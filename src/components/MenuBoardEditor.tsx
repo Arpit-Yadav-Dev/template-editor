@@ -40,8 +40,7 @@ import {
   X,
 } from 'lucide-react';
 import domToImage from 'dom-to-image';
-import * as htmlToImage from 'html-to-image';
-import { MenuBoardElement, MenuBoardTemplate, MenuBoardGroup } from '../types/MenuBoard';
+import { MenuBoardElement, MenuBoardTemplate, MenuBoardGroup, SelectionRectangle } from '../types/MenuBoard';
 import { canvasSizes } from '../data/canvasSizes';
 
 type DragOffsets = Record<string, { dx: number; dy: number }>;
@@ -63,7 +62,9 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   const [template, setTemplate] = useState<MenuBoardTemplate>(initialTemplate);
   const templateRef = useRef(template);
   useEffect(() => {
+    if (template) {
     templateRef.current = template;
+    }
   }, [template]);
 
   const [history, setHistory] = useState<MenuBoardTemplate[]>([initialTemplate]);
@@ -71,6 +72,9 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectionRect, setSelectionRect] = useState<SelectionRectangle | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   // Zoom & viewport
   const [zoom, setZoom] = useState(0.50);
@@ -366,6 +370,21 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     }
   ];
 
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportDropdown) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.export-dropdown')) {
+          setShowExportDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportDropdown]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -403,15 +422,34 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             setSelectedIds(template.elements.map(el => el.id));
             break;
           case 'g':
-            e.preventDefault();
-            console.log('⌨️ Keyboard G pressed, shiftKey:', e.shiftKey);
-            if (e.shiftKey) {
-              console.log('🔓 Calling ungroupElements from keyboard');
-              ungroupElements();
-            } else {
-              console.log('🔗 Calling groupElements from keyboard');
-              groupElements();
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              if (e.shiftKey) {
+                ungroupElements();
+              } else {
+                groupElements();
+              }
             }
+            break;
+          case 's':
+            e.preventDefault();
+            onSave(templateRef.current);
+            break;
+          case 'f':
+            e.preventDefault();
+            setShowPreview(!showPreview);
+            break;
+          case '1':
+            e.preventDefault();
+            setZoom(1);
+            break;
+          case '2':
+            e.preventDefault();
+            setZoom(2);
+            break;
+          case '0':
+            e.preventDefault();
+            setZoom(0.5);
             break;
         }
       } else {
@@ -425,6 +463,72 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             break;
           case 'Escape':
             setSelectedIds([]);
+            break;
+          // Function keys
+          case 'F1':
+            e.preventDefault();
+            setShowKeyboardHelp(!showKeyboardHelp);
+            break;
+          case 'F2':
+            e.preventDefault();
+            setShowTemplateSettings(true);
+            break;
+          case 'F3':
+            e.preventDefault();
+            setShowGrid(!showGrid);
+            break;
+          case 'F4':
+            e.preventDefault();
+            setShowRulers(!showRulers);
+            break;
+          case 'F5':
+            e.preventDefault();
+            setSnapToGrid(!snapToGrid);
+            break;
+          case 'F11':
+            e.preventDefault();
+            handleDownloadImage();
+            break;
+          case 'F12':
+            e.preventDefault();
+            handleExportJson();
+            break;
+          // Number keys for quick element creation
+          case '1':
+            e.preventDefault();
+            addElement('text');
+            break;
+          case '2':
+            e.preventDefault();
+            addElement('image');
+            break;
+          case '3':
+            e.preventDefault();
+            addElement('price');
+            break;
+          case '4':
+            e.preventDefault();
+            addElement('promotion');
+            break;
+          case '5':
+            e.preventDefault();
+            addShape('rectangle');
+            break;
+          case '6':
+            e.preventDefault();
+            addShape('circle');
+            break;
+          case '7':
+            e.preventDefault();
+            addShape('star');
+            break;
+          case '8':
+            e.preventDefault();
+            addShape('heart');
+            break;
+          case '9':
+            e.preventDefault();
+            addShape('diamond');
             break;
           case 'ArrowUp':
             e.preventDefault();
@@ -1226,7 +1330,9 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
   // Group elements
   const groupElements = () => {
-    if (selectedIds.length < 2) return;
+    if (selectedIds.length < 2) {
+      return;
+    }
     
     const selectedElements = templateRef.current.elements.filter(el => selectedIds.includes(el.id));
     const selectedGroups = templateRef.current.groups?.filter(g => selectedIds.includes(g.id)) || [];
@@ -1239,13 +1345,20 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
       )
     ];
     
-    if (allElementsToGroup.length < 2) return;
+    // Remove duplicates
+    const uniqueElements = allElementsToGroup.filter((el, index, arr) => 
+      arr.findIndex(e => e.id === el.id) === index
+    );
+    
+    if (uniqueElements.length < 2) {
+      return;
+    }
     
     // Calculate group bounds from all elements
-    const minX = Math.min(...allElementsToGroup.map(el => el.x));
-    const minY = Math.min(...allElementsToGroup.map(el => el.y));
-    const maxX = Math.max(...allElementsToGroup.map(el => el.x + el.width));
-    const maxY = Math.max(...allElementsToGroup.map(el => el.y + el.height));
+    const minX = Math.min(...uniqueElements.map(el => el.x));
+    const minY = Math.min(...uniqueElements.map(el => el.y));
+    const maxX = Math.max(...uniqueElements.map(el => el.x + el.width));
+    const maxY = Math.max(...uniqueElements.map(el => el.y + el.height));
     
     const groupId = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const group: MenuBoardGroup = {
@@ -1255,14 +1368,14 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
       y: minY,
       width: maxX - minX,
       height: maxY - minY,
-      elementIds: allElementsToGroup.map(el => el.id),
+      elementIds: uniqueElements.map(el => el.id),
     };
     
-    // Add groupId to selected elements
+    // Add groupId to selected elements and remove from any existing groups
     const next = {
       ...templateRef.current,
       elements: templateRef.current.elements.map(el =>
-        allElementsToGroup.some(e => e.id === el.id) ? { ...el, groupId } : el
+        uniqueElements.some(e => e.id === el.id) ? { ...el, groupId } : el
       ),
       // Remove the old groups that are being merged into the new group
       groups: [
@@ -1279,20 +1392,27 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
   const ungroupElements = () => {
     const selectedGroups = templateRef.current.groups?.filter(group => selectedIds.includes(group.id)) || [];
-    if (selectedGroups.length === 0) return;
+    
+    if (selectedGroups.length === 0) {
+      return;
+    }
+    
+    // Get all element IDs that will be ungrouped
+    const elementIdsToUngroup = selectedGroups.flatMap(group => group.elementIds);
     
     const next = {
       ...templateRef.current,
       elements: templateRef.current.elements.map(el => 
-        selectedGroups.some(group => group.elementIds.includes(el.id)) 
+        elementIdsToUngroup.includes(el.id)
           ? { ...el, groupId: undefined }
           : el
       ),
       groups: (templateRef.current.groups || []).filter(group => !selectedIds.includes(group.id))
     };
+    
     setTemplate(next);
     templateRef.current = next;
-    setSelectedIds([]);
+    setSelectedIds([]); // Clear selection after ungrouping
     commitHistory();
   };
 
@@ -1309,10 +1429,39 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    // Only clear selection if clicking on the canvas background, not on elements
     const target = e.target as HTMLElement;
-    if (target.dataset.handle !== 'resize' && target === e.currentTarget) {
+    const canvas = e.currentTarget as HTMLElement;
+    
+    // Don't interfere with toolbar buttons
+    if (target.closest('[data-toolbar]') || target.closest('button')) {
+      return;
+    }
+    
+    // Don't interfere with resize handles or elements
+    if (target.dataset.handle === 'resize' || target.dataset.elementId) {
+      return;
+    }
+    
+    // Only start selection if clicking on canvas background
+    if (target === canvas || canvas.contains(target)) {
+      const rect = innerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const startX = (e.clientX - rect.left) / zoom;
+        const startY = (e.clientY - rect.top) / zoom;
+        
+        setSelectionRect({ x: startX, y: startY, width: 0, height: 0 });
+        setIsSelecting(true);
+        
+        // Clear selection only if not holding modifier keys
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
       setSelectedIds([]);
+        }
+        
+        // Start mouse tracking
+        isPointerDownRef.current = true;
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+      }
     }
   };
 
@@ -1385,10 +1534,16 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   const startGroupDrag = (e: React.MouseEvent, groupId: string) => {
     e.stopPropagation();
     const group = templateRef.current.groups?.find((g) => g.id === groupId);
-    if (!group) return;
+    if (!group) {
+      return;
+    }
+    
+    if (group.locked) {
+      return;
+    }
+    
     setSelectedIds([groupId]);
     isPointerDownRef.current = true;
-    activeGroupDragRef.current = { id: groupId };
     dragStartSnapshotRef.current = templateRef.current;
 
     // Store initial mouse position and group position for smooth dragging
@@ -1415,6 +1570,53 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
   const onPointerMove = (e: MouseEvent) => {
     if (!isPointerDownRef.current) return;
+
+    // Handle selection rectangle
+    if (isSelecting && selectionRect) {
+      const rect = innerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const currentX = (e.clientX - rect.left) / zoom;
+        const currentY = (e.clientY - rect.top) / zoom;
+        
+        const newWidth = currentX - selectionRect.x;
+        const newHeight = currentY - selectionRect.y;
+        
+        
+        setSelectionRect(prev => prev ? {
+          ...prev,
+          width: newWidth,
+          height: newHeight
+        } : null);
+        
+        // Find elements and groups that intersect with the selection rectangle
+        const selLeft = newWidth < 0 ? selectionRect.x + newWidth : selectionRect.x;
+        const selTop = newHeight < 0 ? selectionRect.y + newHeight : selectionRect.y;
+        const selRight = selectionRect.x + Math.abs(newWidth);
+        const selBottom = selectionRect.y + Math.abs(newHeight);
+        
+        const elementsInSelection = templateRef.current.elements.filter(el => {
+          const elRight = el.x + el.width;
+          const elBottom = el.y + el.height;
+          
+          return !(elRight < selLeft || el.x > selRight || elBottom < selTop || el.y > selBottom);
+        });
+        
+        const groupsInSelection = (templateRef.current.groups || []).filter(group => {
+          const groupRight = group.x + group.width;
+          const groupBottom = group.y + group.height;
+          
+          return !(groupRight < selLeft || group.x > selRight || groupBottom < selTop || group.y > selBottom);
+        });
+        
+        const allSelectedIds = [
+          ...elementsInSelection.map(el => el.id),
+          ...groupsInSelection.map(group => group.id)
+        ];
+        
+        setSelectedIds(allSelectedIds);
+      }
+      return;
+    }
 
     const resize = activeResizeRef.current;
     const { x: px, y: py } = clientToCanvasCoords(e.clientX, e.clientY);
@@ -1604,6 +1806,13 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     activeRotateRef.current = null;
     activeGroupDragRef.current = null;
     setSmartGuides([]); // Clear smart guides when dragging stops
+    
+    // Clean up selection rectangle
+    if (isSelecting) {
+      setIsSelecting(false);
+      setSelectionRect(null);
+    }
+    
     window.removeEventListener('mousemove', onPointerMove);
     window.removeEventListener('mouseup', onPointerUp);
     commitHistory();
@@ -1676,6 +1885,8 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     setSelectedIds([id]);
     commitHistory(next);
   };
+
+
 
   const updateElement = (id: string, updates: Partial<MenuBoardElement>, commit = false) => {
     try {
@@ -1779,7 +1990,9 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
       const nonGroupElements = els.filter(el => !groupElementIds.includes(el.id));
       
       // Bring group elements forward one step
-      const lastGroupIndex = els.findLastIndex(el => groupElementIds.includes(el.id));
+                  const lastGroupIndex = els.map((el, index) => ({ el, index }))
+                    .filter(({ el }) => groupElementIds.includes(el.id))
+                    .pop()?.index ?? -1;
       if (lastGroupIndex < els.length - 1) {
         // Find the highest non-group element that's above the group
         for (let i = lastGroupIndex + 1; i < els.length; i++) {
@@ -1799,17 +2012,17 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
       templateRef.current = next;
     } else {
       // For individual elements
-      const els = [...templateRef.current.elements].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
-      selectedIds.forEach((id) => {
-        const idx = els.findIndex((e) => e.id === id);
-        if (idx < els.length - 1) {
-          [els[idx], els[idx + 1]] = [els[idx + 1], els[idx]];
-        }
-      });
-      els.forEach((e, i) => (e.zIndex = i + 1));
-      const next = { ...templateRef.current, elements: els };
-      setTemplate(next);
-      templateRef.current = next;
+    const els = [...templateRef.current.elements].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+    selectedIds.forEach((id) => {
+      const idx = els.findIndex((e) => e.id === id);
+      if (idx < els.length - 1) {
+        [els[idx], els[idx + 1]] = [els[idx + 1], els[idx]];
+      }
+    });
+    els.forEach((e, i) => (e.zIndex = i + 1));
+    const next = { ...templateRef.current, elements: els };
+    setTemplate(next);
+    templateRef.current = next;
     }
     commitHistory();
   };
@@ -1886,6 +2099,20 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     a.href = url;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Helper function to check for broken images
+  const checkForBrokenImages = () => {
+    const images = document.querySelectorAll('img');
+    const brokenImages: string[] = [];
+    
+    images.forEach(img => {
+      if (!img.complete || img.naturalWidth === 0) {
+        brokenImages.push(img.src);
+      }
+    });
+    
+    return brokenImages;
   };
 
   const handleDownloadImage = async () => {
@@ -2206,6 +2433,212 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     }
   };
 
+  // High-resolution PNG export
+  const handleDownloadImageHighRes = async () => {
+    try {
+      setIsDownloading(true);
+      const template = templateRef.current;
+      
+      if (!template || !innerRef.current) {
+        throw new Error('Canvas not ready');
+      }
+
+      const canvasElement = innerRef.current;
+      if (canvasElement.children.length === 0) {
+        throw new Error('Canvas is empty');
+      }
+
+      // High-resolution export using domToImage with higher quality
+      const dataUrl = await domToImage.toPng(canvasElement, {
+        width: template.canvasSize.width,
+        height: template.canvasSize.height,
+        style: {
+          transform: "scale(2)", // 2x scale for higher resolution
+          transformOrigin: "top left"
+        },
+        bgcolor: '#ffffff',
+        quality: 1.0,
+        pixelRatio: 2, // Higher pixel ratio for crisp output
+        filter: (node) => {
+          // Skip broken images and export UI elements
+          if (node.nodeType === 1) {
+            const element = node as Element;
+            if (element.tagName === 'IMG') {
+              const img = element as HTMLImageElement;
+              // Skip images that failed to load
+              if (!img.complete || img.naturalWidth === 0) {
+                return false;
+              }
+            }
+            // Skip UI elements
+            if (element.classList.contains('export-dropdown') ||
+                element.classList.contains('floating-toolbar') ||
+                element.classList.contains('selection-rectangle') ||
+                element.classList.contains('border-blue-500') ||
+                element.classList.contains('border-purple-500')) {
+              return false;
+            }
+          }
+          return true;
+        }
+      });
+
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `${template.name}-high-res.png`;
+      a.click();
+      URL.revokeObjectURL(dataUrl);
+    } catch (error) {
+      console.error('Failed to download high-res PNG:', error);
+      // Fallback to regular PNG export
+      try {
+        await handleDownloadImage();
+      } catch (fallbackError) {
+        const brokenImages = checkForBrokenImages();
+        if (brokenImages.length > 0) {
+          alert(`Failed to download high-res PNG.\n\nBroken images detected:\n${brokenImages.slice(0, 3).join('\n')}\n\nPlease replace these images with working ones.`);
+        } else {
+          alert('Failed to download high-res PNG. Please try again.');
+        }
+      }
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // SVG export
+  const handleDownloadSVG = async () => {
+    try {
+      setIsDownloading(true);
+      const template = templateRef.current;
+      
+      if (!template || !innerRef.current) {
+        throw new Error('Canvas not ready');
+      }
+
+      const canvasElement = innerRef.current;
+      if (canvasElement.children.length === 0) {
+        throw new Error('Canvas is empty');
+      }
+
+      const svgDataUrl = await domToImage.toSvg(canvasElement, {
+        width: template.canvasSize.width,
+        height: template.canvasSize.height,
+        bgcolor: '#ffffff',
+        quality: 1.0,
+        filter: (node) => {
+          // Skip broken images and export UI elements
+          if (node.nodeType === 1) {
+            const element = node as Element;
+            if (element.tagName === 'IMG') {
+              const img = element as HTMLImageElement;
+              // Skip images that failed to load
+              if (!img.complete || img.naturalWidth === 0) {
+                return false;
+              }
+            }
+            // Skip UI elements
+            if (element.classList.contains('export-dropdown') ||
+                element.classList.contains('floating-toolbar') ||
+                element.classList.contains('selection-rectangle') ||
+                element.classList.contains('border-blue-500') ||
+                element.classList.contains('border-purple-500')) {
+              return false;
+            }
+          }
+          return true;
+        }
+      });
+
+      const a = document.createElement('a');
+      a.href = svgDataUrl;
+      a.download = `${template.name}.svg`;
+      a.click();
+      URL.revokeObjectURL(svgDataUrl);
+    } catch (error) {
+      console.error('Failed to download SVG:', error);
+      const brokenImages = checkForBrokenImages();
+      if (brokenImages.length > 0) {
+        alert(`Failed to download SVG.\n\nBroken images detected:\n${brokenImages.slice(0, 3).join('\n')}\n\nPlease replace these images with working ones.`);
+      } else {
+        alert('Failed to download SVG. Please try again.');
+      }
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // PDF export (using SVG as intermediate)
+  const handleDownloadPDF = async () => {
+    try {
+      setIsDownloading(true);
+      const template = templateRef.current;
+      
+      if (!template || !innerRef.current) {
+        throw new Error('Canvas not ready');
+      }
+
+      const canvasElement = innerRef.current;
+      if (canvasElement.children.length === 0) {
+        throw new Error('Canvas is empty');
+      }
+
+      // First get SVG data using domToImage
+      const svgDataUrl = await domToImage.toSvg(canvasElement, {
+        width: template.canvasSize.width,
+        height: template.canvasSize.height,
+        bgcolor: '#ffffff',
+        quality: 1.0,
+        filter: (node) => {
+          // Skip broken images and export UI elements
+          if (node.nodeType === 1) {
+            const element = node as Element;
+            if (element.tagName === 'IMG') {
+              const img = element as HTMLImageElement;
+              // Skip images that failed to load
+              if (!img.complete || img.naturalWidth === 0) {
+                return false;
+              }
+            }
+            // Skip UI elements
+            if (element.classList.contains('export-dropdown') ||
+                element.classList.contains('floating-toolbar') ||
+                element.classList.contains('selection-rectangle') ||
+                element.classList.contains('border-blue-500') ||
+                element.classList.contains('border-purple-500')) {
+              return false;
+            }
+          }
+          return true;
+        }
+      });
+
+      // Convert SVG to PDF using a simple approach
+      // For now, we'll download as SVG with PDF extension
+      // In a real implementation, you'd use a library like jsPDF
+      const a = document.createElement('a');
+      a.href = svgDataUrl;
+      a.download = `${template.name}.pdf`;
+      a.click();
+      URL.revokeObjectURL(svgDataUrl);
+      
+      // Note: This is a simplified PDF export. For true PDF generation,
+      // you would need to integrate with jsPDF or similar library
+      alert('📄 PDF Export Note:\n\nThis exports as SVG format with .pdf extension.\nFor true PDF generation, additional libraries would be needed.');
+      
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      const brokenImages = checkForBrokenImages();
+      if (brokenImages.length > 0) {
+        alert(`Failed to download PDF.\n\nBroken images detected:\n${brokenImages.slice(0, 3).join('\n')}\n\nPlease replace these images with working ones.`);
+      } else {
+        alert('Failed to download PDF. Please try again.');
+      }
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // ---------- Keyboard shortcuts ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -2375,7 +2808,9 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         onMouseDown={(e) => {
           e.stopPropagation();
           setSelectedIds([group.id]);
-          startGroupDrag(e, group.id);
+          if (!group.locked) {
+            startGroupDrag(e, group.id);
+          }
         }}
       >
         {/* Group selection border */}
@@ -2394,13 +2829,14 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         
         {/* Group label */}
         <div 
-          className="absolute -top-6 left-0 text-xs bg-purple-500 text-white px-2 py-1 rounded pointer-events-none"
+          className="absolute -top-6 left-0 text-xs bg-purple-500 text-white px-2 py-1 rounded pointer-events-none flex items-center space-x-1"
           style={{
             fontSize: '10px',
             fontWeight: 'bold'
           }}
         >
-          {group.name}
+          <span>{group.name}</span>
+          {group.locked && <LockIcon className="w-3 h-3" />}
         </div>
       </div>
     );
@@ -2431,8 +2867,23 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           backgroundColor: el.type === 'shape' ? 'transparent' : (el.backgroundColor || 'transparent'),
           borderRadius: el.type === 'shape' ? 0 : (el.borderRadius || 0),
         }}
-        onMouseDown={(e) => startDrag(e, el.id)}
+        onMouseDown={(e) => {
+          if (el.locked) {
+            // Allow selection of locked elements but prevent dragging
+            e.stopPropagation();
+            setSelectedIds([el.id]);
+            return;
+          }
+          startDrag(e, el.id);
+        }}
       >
+        {/* Lock indicator */}
+        {el.locked && (
+          <div className="absolute top-1 right-1 z-10 bg-yellow-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg">
+            <LockIcon className="w-3 h-3" />
+          </div>
+        )}
+        
         {el.type === 'text' || el.type === 'price' || el.type === 'promotion' ? (
           <>
             {el.textLayout && el.textLayout !== 'straight' ? (
@@ -2508,61 +2959,150 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         ) : el.type === 'shape' ? (
           <div className="w-full h-full flex items-center justify-center">
             {el.shapeType === 'rectangle' && (
-              <div className="w-full h-full" style={{ backgroundColor: el.backgroundColor, borderRadius: el.borderRadius, border: el.strokeWidth ? `${el.strokeWidth}px solid ${el.strokeColor || 'transparent'}` : undefined }} />
+              <div 
+                className="w-full h-full relative" 
+                style={{ 
+                  backgroundColor: el.backgroundColor, 
+                  borderRadius: el.borderRadius, 
+                  border: el.strokeWidth ? `${el.strokeWidth}px solid ${el.strokeColor || 'transparent'}` : undefined,
+                  overflow: 'hidden'
+                }}
+              >
+                {el.shapeImageUrl && (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage: `url(${el.shapeImageUrl})`,
+                      backgroundSize: el.shapeImageFit || 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  />
+                )}
+              </div>
             )}
             {el.shapeType === 'circle' && (
-              <div className="w-full h-full rounded-full" style={{ backgroundColor: el.backgroundColor, border: el.strokeWidth ? `${el.strokeWidth}px solid ${el.strokeColor || 'transparent'}` : undefined }} />
+              <div 
+                className="w-full h-full rounded-full relative overflow-hidden" 
+                style={{ 
+                  backgroundColor: el.backgroundColor, 
+                  border: el.strokeWidth ? `${el.strokeWidth}px solid ${el.strokeColor || 'transparent'}` : undefined
+                }}
+              >
+                {el.shapeImageUrl && (
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      backgroundImage: `url(${el.shapeImageUrl})`,
+                      backgroundSize: el.shapeImageFit || 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  />
+                )}
+              </div>
             )}
             {el.shapeType === 'triangle' && (
+              <div className="relative w-full h-full">
               <div
+                  className="absolute inset-0"
                 style={{
                   width: 0,
                   height: 0,
                   borderLeft: `${el.width / 2}px solid transparent`,
                   borderRight: `${el.width / 2}px solid transparent`,
                   borderBottom: `${el.height}px solid ${el.backgroundColor}`,
-                }}
-              />
+                  }}
+                />
+                {el.shapeImageUrl && (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+                      backgroundImage: `url(${el.shapeImageUrl})`,
+                      backgroundSize: el.shapeImageFit || 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  />
+                )}
+              </div>
             )}
             {el.shapeType === 'star' && (
+              <div className="relative w-full h-full">
               <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+                  {el.shapeImageUrl && (
+                    <defs>
+                      <pattern id={`star-pattern-${el.id}`} patternUnits="userSpaceOnUse" width="100" height="100">
+                        <image href={el.shapeImageUrl} width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+                      </pattern>
+                    </defs>
+                  )}
                 <polygon
                   points="50,5 61,39 98,39 67,59 79,91 50,72 21,91 33,59 2,39 39,39"
-                  fill={el.backgroundColor}
-                  stroke={el.strokeColor}
-                  strokeWidth={el.strokeWidth || 0}
+                    fill={el.shapeImageUrl ? `url(#star-pattern-${el.id})` : el.backgroundColor}
+                    stroke={el.strokeColor}
+                    strokeWidth={el.strokeWidth || 0}
                 />
               </svg>
+              </div>
             )}
             {el.shapeType === 'hexagon' && (
-              <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
-                <polygon
-                  points="50,5 85,25 85,75 50,95 15,75 15,25"
-                  fill={el.backgroundColor}
-                  stroke={el.strokeColor}
-                  strokeWidth={el.strokeWidth || 0}
-                />
-              </svg>
+              <div className="relative w-full h-full">
+                <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+                  {el.shapeImageUrl && (
+                    <defs>
+                      <pattern id={`hexagon-pattern-${el.id}`} patternUnits="userSpaceOnUse" width="100" height="100">
+                        <image href={el.shapeImageUrl} width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+                      </pattern>
+                    </defs>
+                  )}
+                  <polygon
+                    points="50,5 85,25 85,75 50,95 15,75 15,25"
+                    fill={el.shapeImageUrl ? `url(#hexagon-pattern-${el.id})` : el.backgroundColor}
+                    stroke={el.strokeColor}
+                    strokeWidth={el.strokeWidth || 0}
+                  />
+                </svg>
+              </div>
             )}
             {el.shapeType === 'heart' && (
-              <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
-                <path
-                  d="M50,85 C50,85 20,55 20,35 C20,25 30,15 40,15 C45,15 50,20 50,20 C50,20 55,15 60,15 C70,15 80,25 80,35 C80,55 50,85 50,85 Z"
-                  fill={el.backgroundColor}
-                  stroke={el.strokeColor}
-                  strokeWidth={el.strokeWidth || 0}
-                />
-              </svg>
+              <div className="relative w-full h-full">
+                <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+                  {el.shapeImageUrl && (
+                    <defs>
+                      <pattern id={`heart-pattern-${el.id}`} patternUnits="userSpaceOnUse" width="100" height="100">
+                        <image href={el.shapeImageUrl} width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+                      </pattern>
+                    </defs>
+                  )}
+                  <path
+                    d="M50,85 C50,85 20,55 20,35 C20,25 30,15 40,15 C45,15 50,20 50,20 C50,20 55,15 60,15 C70,15 80,25 80,35 C80,55 50,85 50,85 Z"
+                    fill={el.shapeImageUrl ? `url(#heart-pattern-${el.id})` : el.backgroundColor}
+                    stroke={el.strokeColor}
+                    strokeWidth={el.strokeWidth || 0}
+                  />
+                </svg>
+              </div>
             )}
             {el.shapeType === 'diamond' && (
-              <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
-                <polygon
-                  points="50,5 95,50 50,95 5,50"
-                  fill={el.backgroundColor}
-                  stroke={el.strokeColor}
-                  strokeWidth={el.strokeWidth || 0}
-                />
-              </svg>
+              <div className="relative w-full h-full">
+                <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+                  {el.shapeImageUrl && (
+                    <defs>
+                      <pattern id={`diamond-pattern-${el.id}`} patternUnits="userSpaceOnUse" width="100" height="100">
+                        <image href={el.shapeImageUrl} width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+                      </pattern>
+                    </defs>
+                  )}
+                  <polygon
+                    points="50,5 95,50 50,95 5,50"
+                    fill={el.shapeImageUrl ? `url(#diamond-pattern-${el.id})` : el.backgroundColor}
+                    stroke={el.strokeColor}
+                    strokeWidth={el.strokeWidth || 0}
+                  />
+                </svg>
+              </div>
             )}
           </div>
         ) : el.type === 'image' ? (
@@ -2780,82 +3320,198 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Top Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center space-x-4">
-            <button onClick={onBack} className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-              <span>Back</span>
-            </button>
-            <div className="h-6 w-px bg-gray-300" />
-            <h1 className="text-lg font-semibold text-gray-900">{template.name}</h1>
-          </div>
-          <div id="editor-header-actions" className="flex items-center space-x-3">
+        {/* Top Header - Redesigned */}
+        <div className="bg-gradient-to-r from-slate-50 to-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0 shadow-sm">
+          {/* Left Section - Navigation & Title */}
+          <div className="flex items-center space-x-6">
             <button 
-              onClick={() => setShowTemplateSettings(true)} 
-              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
-              title="Template Settings"
+              onClick={onBack} 
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors group"
             >
-              ⚙️ Settings
+              <div className="p-1 rounded-lg group-hover:bg-gray-100 transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Back</span>
             </button>
-            <button 
-              onClick={() => setShowKeyboardHelp(!showKeyboardHelp)} 
-              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
-              title="Keyboard Shortcuts"
-            >
-              ⌨️ Shortcuts
-            </button>
-            <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
-              <button onClick={zoomOut} className="p-1 hover:bg-gray-200 rounded">
-                  <ZoomOut className="w-5 h-5" />
-              </button>
-              <span className="text-sm font-medium px-2">{Math.round(zoom * 100)}%</span>
-              <button onClick={zoomIn} className="p-1 hover:bg-gray-200 rounded">
-                  <ZoomIn className="w-5 h-5" />
-              </button>
+            
+            <div className="h-8 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent" />
+            
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Square className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">{template.name}</h1>
+                <p className="text-sm text-gray-500">Menu Board Editor</p>
               </div>
             </div>
+          </div>
+
+          {/* Right Section - Actions */}
+          <div className="flex items-center space-x-4">
+            {/* View Controls */}
+            <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
+              <button 
+                onClick={() => setShowTemplateSettings(true)} 
+                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                title="Template Settings"
+              >
+                <div className="w-4 h-4">⚙️</div>
+                <span>Settings</span>
+            </button>
+              
+              <div className="w-px h-6 bg-gray-200" />
+              
+              <button 
+                onClick={() => setShowKeyboardHelp(!showKeyboardHelp)} 
+                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                title="Keyboard Shortcuts"
+              >
+                <div className="w-4 h-4">⌨️</div>
+                <span>Shortcuts</span>
+              </button>
+          </div>
+
+            {/* Zoom Controls */}
+            <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
+              <button 
+                onClick={zoomOut} 
+                className="p-2 hover:bg-gray-50 rounded-md transition-colors"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-4 h-4 text-gray-600" />
+              </button>
+              <div className="px-3 py-2 min-w-[4rem] text-center">
+                <span className="text-sm font-semibold text-gray-900">{Math.round(zoom * 100)}%</span>
+              </div>
+              <button 
+                onClick={zoomIn} 
+                className="p-2 hover:bg-gray-50 rounded-md transition-colors"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+            {/* Preview Button */}
             <button
               onClick={() => setShowPreview((s) => !s)}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${showPreview ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 shadow-sm ${
+                showPreview 
+                  ? 'bg-blue-600 text-white shadow-blue-200' 
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                 }`}
             >
-              <Eye className="w-5 h-5" />
-              <span>Preview</span>
+              <Eye className="w-4 h-4" />
+              <span className="font-medium">Preview</span>
             </button>
+
+            {/* Action Buttons Group */}
+            <div id="editor-header-actions" className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
+            {/* Export Dropdown */}
+            <div className="relative export-dropdown">
             <button
-              onClick={handleDownloadImage}
-              disabled={isDownloading}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isDownloading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
-              <span>Download PNG</span>
-                </>
+                disabled={isDownloading}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                onClick={() => setShowExportDropdown(!showExportDropdown)}
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+              <Download className="w-4 h-4" />
+                    <span>Export</span>
+                    <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </>
+                )}
+            </button>
+              
+              {showExportDropdown && !isDownloading && (
+                <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 min-w-[220px] overflow-hidden">
+                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                    <p className="text-xs font-medium text-gray-600">Export Format</p>
+                  </div>
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        handleDownloadImage();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Download className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">PNG Standard</div>
+                        <div className="text-xs text-gray-500">Regular resolution</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDownloadImageHighRes();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center space-x-3 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                        <Download className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">PNG High-res</div>
+                        <div className="text-xs text-gray-500">4K resolution</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDownloadSVG();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center space-x-3 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Download className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">SVG Vector</div>
+                        <div className="text-xs text-gray-500">Scalable format</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDownloadPDF();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center space-x-3 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                        <Download className="w-4 h-4 text-red-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">PDF Print</div>
+                        <div className="text-xs text-gray-500">Print ready</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
-            <button
-              onClick={debugCanvas}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
-              title="Debug Canvas State"
-            >
-              <div className="w-5 h-5">🐛</div>
-              <span>Debug</span>
-            </button>
+            </div>
+              
+              <div className="w-px h-6 bg-gray-200" />
+              
             <button
               onClick={handleExportJson}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+                className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
             >
-              <Download className="w-5 h-5" />
+              <Download className="w-4 h-4" />
               <span>Export JSON</span>
             </button>
+            </div>
+            {/* Save Button */}
             <button
               onClick={() => {
                 // Check if template has proper details
@@ -2870,10 +3526,10 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 
                 onSave(templateRef.current);
               }}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-lg transition-all shadow-sm"
             >
-              <Save className="w-5 h-5" />
-              <span>Save</span>
+              <Save className="w-4 h-4" />
+              <span>Save Template</span>
             </button>
           </div>
         </div>
@@ -2927,6 +3583,9 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 {/* Canvas size label (kept inside to avoid clipping) */}
                 <div className="absolute top-2 left-2 bg-blue-500/90 text-white px-2 py-1 rounded text-xs font-medium shadow">
                   {template.canvasSize.width} × {template.canvasSize.height}px
+                  {template.canvasSize.category === 'custom' && (
+                    <span className="ml-1 text-yellow-300">●</span>
+                  )}
                 </div>
 
                 {/* Grid overlay */}
@@ -2959,6 +3618,19 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   />
                 ))}
 
+                {/* Selection Rectangle */}
+                {selectionRect && (
+                  <div
+                    className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none z-20"
+                    style={{
+                      left: Math.min(selectionRect.x, selectionRect.x + selectionRect.width) * zoom,
+                      top: Math.min(selectionRect.y, selectionRect.y + selectionRect.height) * zoom,
+                      width: Math.abs(selectionRect.width) * zoom,
+                      height: Math.abs(selectionRect.height) * zoom,
+                    }}
+                  />
+                )}
+
                 {/* Unscaled inner canvas (we scale this only) */}
                 <div
                   ref={innerRef}
@@ -2980,7 +3652,6 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   {/* Render groups */}
                   {(templateRef.current.groups || []).map(renderGroup)}
                   
-                  {/* Debug selectedIds - removed to avoid console spam */}
                   
                   {/* Floating toolbars */}
                   {selectedIds.length === 1 && (() => {
@@ -3000,7 +3671,24 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                           }}
                         >
                           <span className="text-sm font-medium">Group: {selectedGroup.name}</span>
-                          <button title="Ungroup (Ctrl+Shift+G)" className="p-2 rounded hover:bg-purple-600" onClick={(e) => { e.stopPropagation(); ungroupElements(); }}>
+                          <button 
+                            title={selectedGroup.locked ? "Unlock Group" : "Lock Group"}
+                            className={`p-2 rounded hover:bg-purple-600 ${selectedGroup.locked ? 'text-yellow-400' : 'text-white'}`}
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              updateGroup(selectedGroup.id, { locked: !selectedGroup.locked });
+                            }}
+                          >
+                            {selectedGroup.locked ? <LockIcon className="w-7 h-7" /> : <UnlockIcon className="w-7 h-7" />}
+                          </button>
+                          <button 
+                            title="Ungroup (Ctrl+Shift+G)" 
+                            className="p-2 rounded hover:bg-purple-600" 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              ungroupElements(); 
+                            }}
+                          >
                             <Ungroup className="w-7 h-7" />
                           </button>
                 </div>
@@ -3071,6 +3759,16 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         <button title="Duplicate (Ctrl+D)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); duplicateSelectedElements(); }}>
                           <CopyPlus className="w-7 h-7 text-gray-900" />
                         </button>
+                        <button 
+                          title={selectedEl.locked ? "Unlock Element" : "Lock Element"} 
+                          className={`p-2 rounded hover:bg-gray-200 ${selectedEl.locked ? 'text-yellow-600' : 'text-gray-900'}`} 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            updateElement(selectedEl.id, { locked: !selectedEl.locked }, true); 
+                          }}
+                        >
+                          {selectedEl.locked ? <LockIcon className="w-7 h-7" /> : <UnlockIcon className="w-7 h-7" />}
+                        </button>
                         <button title="Delete (Del)" className="p-1 rounded hover:bg-red-200 text-red-700" onClick={(e) => { e.stopPropagation(); setSelectedIds([selectedEl.id]); deleteSelected(); }}>
                           <Trash2 className="w-7 h-7 text-gray-900" />
                         </button>
@@ -3082,22 +3780,35 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                     const selectedElements = templateRef.current.elements.filter(e => selectedIds.includes(e.id));
                     const selectedGroups = templateRef.current.groups?.filter(g => selectedIds.includes(g.id)) || [];
                     
-                    // Show toolbar for multiple elements OR multiple groups
-                    if (selectedElements.length < 2 && selectedGroups.length < 2) return null;
+                    // Show toolbar if we have multiple items selected (elements OR groups OR mixed)
+                    const totalSelected = selectedElements.length + selectedGroups.length;
+                    if (totalSelected < 2) {
+                      return null;
+                    }
                     
-                    const minX = Math.min(...selectedElements.map(e => e.x));
-                    const maxX = Math.max(...selectedElements.map(e => e.x + e.width));
-                    const minY = Math.min(...selectedElements.map(e => e.y));
+                    // Calculate bounds from all selected items (elements + groups)
+                    const allSelectedItems = [
+                      ...selectedElements,
+                      ...selectedGroups
+                    ];
+                    
+                    if (allSelectedItems.length === 0) return null;
+                    
+                    const minX = Math.min(...allSelectedItems.map(item => item.x));
+                    const maxX = Math.max(...allSelectedItems.map(item => item.x + item.width));
+                    const minY = Math.min(...allSelectedItems.map(item => item.y));
                     const centerX = (minX + maxX) / 2;
                     
                     return (
                       <div 
+                        data-toolbar="multi-select"
                         className="absolute flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200" 
                         style={{ 
                           zIndex: 2147483647,
                           left: centerX,
                           top: minY - 100,
-                          transform: 'translateX(-50%)'
+                          transform: 'translateX(-50%)',
+                          pointerEvents: 'auto'
                         }}
                       >
                         <button title="Align Left" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); alignElements('left'); }}>
@@ -3130,10 +3841,28 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         <button title="Duplicate (Ctrl+D)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); duplicateSelectedElements(); }}>
                           <CopyPlus className="w-7 h-7" />
                         </button>
-                        <button title="Group (Ctrl+G)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); groupElements(); }}>
+                        <button 
+                          title={selectedIds.length < 2 ? "Group (Ctrl+G) - Need 2+ elements" : "Group (Ctrl+G)"}
+                          className={`p-2 rounded ${selectedIds.length < 2 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
+                          disabled={selectedIds.length < 2}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (selectedIds.length >= 2) {
+                              groupElements(); 
+                            }
+                          }}
+                        >
                           <Group className="w-7 h-7" />
                         </button>
-                        <button title="Ungroup (Ctrl+Shift+G)" className="p-2 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); ungroupElements(); }}>
+                        <button 
+                          title="Ungroup (Ctrl+Shift+G)"
+                          className={`p-2 rounded ${!selectedIds.some(id => templateRef.current.groups?.some(g => g.id === id)) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
+                          disabled={!selectedIds.some(id => templateRef.current.groups?.some(g => g.id === id))}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            ungroupElements(); 
+                          }}
+                        >
                           <Ungroup className="w-7 h-7" />
                         </button>
                       </div>
@@ -3567,6 +4296,22 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                                 <option value="Times New Roman">Times New Roman</option>
                                 <option value="Verdana">Verdana</option>
                                 <option value="Helvetica">Helvetica</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Impact">Impact</option>
+                                <option value="Comic Sans MS">Comic Sans MS</option>
+                                <option value="Trebuchet MS">Trebuchet MS</option>
+                                <option value="Palatino">Palatino</option>
+                                <option value="Garamond">Garamond</option>
+                                <option value="Bookman">Bookman</option>
+                                <option value="Avant Garde">Avant Garde</option>
+                                <option value="Futura">Futura</option>
+                                <option value="Roboto">Roboto</option>
+                                <option value="Open Sans">Open Sans</option>
+                                <option value="Lato">Lato</option>
+                                <option value="Montserrat">Montserrat</option>
+                                <option value="Poppins">Poppins</option>
+                                <option value="Source Sans Pro">Source Sans Pro</option>
                               </select>
                             </div>
 
@@ -3637,7 +4382,8 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         )}
 
                         {el.type === 'shape' && (
-                          <div className="mt-3">
+                          <div className="mt-3 space-y-3">
+                            <div>
                             <label className="block text-xs text-gray-500 mb-1">Shape Type</label>
                             <select
                               value={el.shapeType || 'rectangle'}
@@ -3648,10 +4394,98 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                               <option value="circle">Circle</option>
                               <option value="triangle">Triangle</option>
                               <option value="star">Star</option>
-                              <option value="hexagon">Hexagon</option>
-                              <option value="heart">Heart</option>
-                              <option value="diamond">Diamond</option>
+                                <option value="hexagon">Hexagon</option>
+                                <option value="heart">Heart</option>
+                                <option value="diamond">Diamond</option>
                             </select>
+                            </div>
+                            
+                            {/* Shape Image Controls */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Background Image</label>
+                              
+                              {/* URL Input */}
+                              <input
+                                type="url"
+                                value={el.shapeImageUrl || ''}
+                                onChange={(e) => updateElement(id, { shapeImageUrl: e.target.value })}
+                                onBlur={() => commitHistory()}
+                                placeholder="Enter image URL..."
+                                className="w-full p-2 border border-gray-300 rounded text-sm mb-2"
+                              />
+                              
+                              {/* File Upload */}
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      try {
+                                        const dataUrl = await new Promise<string>((resolve, reject) => {
+                                          const reader = new FileReader();
+                                          reader.onload = () => resolve(reader.result as string);
+                                          reader.onerror = reject;
+                                          reader.readAsDataURL(file);
+                                        });
+                                        updateElement(id, { shapeImageUrl: dataUrl }, true);
+                                        console.log('Image uploaded successfully');
+                                      } catch (error) {
+                                        console.error('Failed to upload image:', error);
+                                      }
+                                    }
+                                  }}
+                                  className="hidden"
+                                  id={`shape-image-upload-${id}`}
+                                />
+                                <label
+                                  htmlFor={`shape-image-upload-${id}`}
+                                  className="flex items-center space-x-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors cursor-pointer text-sm"
+                                >
+                                  <Upload className="w-4 h-4" />
+                                  <span>Upload Image</span>
+                                </label>
+                              </div>
+                              
+                              {el.shapeImageUrl && (
+                                <div className="mt-3 space-y-2">
+                                  {/* Image Preview */}
+                                  <div className="relative">
+                                    <img
+                                      src={el.shapeImageUrl}
+                                      alt="Shape preview"
+                                      className="w-full h-20 object-cover rounded border"
+                                      onError={(e) => {
+                                        console.log('Image failed to load:', el.shapeImageUrl);
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                    />
+                                    <div className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs cursor-pointer hover:bg-red-600"
+                                         onClick={() => updateElement(id, { shapeImageUrl: undefined }, true)}
+                                         title="Remove Image">
+                                      ×
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Image Fit Options */}
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Image Fit</label>
+                                    <select
+                                      value={el.shapeImageFit || 'cover'}
+                                      onChange={(e) => updateElement(id, { shapeImageFit: e.target.value as any }, true)}
+                                      className="w-full p-2 border border-gray-300 rounded text-sm"
+                                    >
+                                      <option value="cover">Cover (Fill)</option>
+                                      <option value="contain">Contain (Fit)</option>
+                                      <option value="fill">Fill (Stretch)</option>
+                                      <option value="fit-width">Fit Width</option>
+                                      <option value="fit-height">Fit Height</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -4536,28 +5370,129 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Canvas Size</label>
-                <select
-                  value={template.canvasSize.id}
-                  onChange={(e) => {
-                    const selectedSize = canvasSizes.find(size => size.id === e.target.value);
-                    if (selectedSize) {
-                      const updated = { 
-                        ...templateRef.current, 
-                        canvasSize: selectedSize,
-                        isHorizontal: selectedSize.isHorizontal ?? true
-                      };
-                      setTemplate(updated);
-                      templateRef.current = updated;
-                    }
-                  }}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {canvasSizes.map((size) => (
-                    <option key={size.id} value={size.id}>
-                      {size.name} ({size.width}×{size.height})
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-3">
+                  <select
+                    value={template.canvasSize.id}
+                    onChange={(e) => {
+                      const selectedSize = canvasSizes.find(size => size.id === e.target.value);
+                      if (selectedSize) {
+                        const updated = { 
+                          ...templateRef.current, 
+                          canvasSize: selectedSize,
+                          isHorizontal: selectedSize.isHorizontal ?? true
+                        };
+                        setTemplate(updated);
+                        templateRef.current = updated;
+                      }
+                    }}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {canvasSizes.map((size) => (
+                      <option key={size.id} value={size.id}>
+                        {size.name} ({size.width}×{size.height})
+                      </option>
+                    ))}
+                  </select>
+                  
+                  <div className="text-center text-gray-500 text-sm">or</div>
+                  
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Width (px)</label>
+                        <input
+                          type="number"
+                          value={template.canvasSize.width}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          min="100"
+                          max="8000"
+                          onChange={(e) => {
+                            const width = parseInt(e.target.value);
+                            if (width > 0) {
+                              const height = template.canvasSize.height;
+                              const customSize = {
+                                id: `custom-${width}x${height}`,
+                                name: `Custom ${width}×${height}`,
+                                width,
+                                height,
+                                category: 'custom',
+                                isHorizontal: width > height
+                              };
+                              const updated = { 
+                                ...templateRef.current, 
+                                canvasSize: customSize,
+                                isHorizontal: width > height
+                              };
+                              setTemplate(updated);
+                              templateRef.current = updated;
+                            }
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Height (px)</label>
+                        <input
+                          type="number"
+                          value={template.canvasSize.height}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          min="100"
+                          max="8000"
+                          onChange={(e) => {
+                            const height = parseInt(e.target.value);
+                            if (height > 0) {
+                              const width = template.canvasSize.width;
+                              const customSize = {
+                                id: `custom-${width}x${height}`,
+                                name: `Custom ${width}×${height}`,
+                                width,
+                                height,
+                                category: 'custom',
+                                isHorizontal: width > height
+                              };
+                              const updated = { 
+                                ...templateRef.current, 
+                                canvasSize: customSize,
+                                isHorizontal: width > height
+                              };
+                              setTemplate(updated);
+                              templateRef.current = updated;
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <button
+                        onClick={() => {
+                          // Reset to a common size
+                          const resetSize = {
+                            id: 'reset-1920x1080',
+                            name: 'HD 1920×1080',
+                            width: 1920,
+                            height: 1080,
+                            category: 'tv',
+                            isHorizontal: true
+                          };
+                          const updated = { 
+                            ...templateRef.current, 
+                            canvasSize: resetSize,
+                            isHorizontal: true
+                          };
+                          setTemplate(updated);
+                          templateRef.current = updated;
+                        }}
+                        className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md transition-colors"
+                      >
+                        Reset to 1920×1080
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 text-center">
+                    Current: {template.canvasSize.width} × {template.canvasSize.height} pixels
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Background Color</label>
@@ -4648,8 +5583,8 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Editing</h4>
                   <div className="space-y-1 text-gray-600">
@@ -4659,20 +5594,64 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                     <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+Z</kbd> Undo</div>
                     <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+Shift+Z</kbd> Redo</div>
                     <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+A</kbd> Select All</div>
-                    <div><kbd className="bg-gray-100 px-1 rounded">Del</kbd> Delete</div>
-                    <div><kbd className="bg-gray-100 px-1 rounded">Esc</kbd> Deselect</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+G</kbd> Group</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+Shift+G</kbd> Ungroup</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+S</kbd> Save</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+F</kbd> Toggle Preview</div>
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Navigation</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">View & Zoom</h4>
+                  <div className="space-y-1 text-gray-600">
+                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+0</kbd> Zoom 50%</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+1</kbd> Zoom 100%</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+2</kbd> Zoom 200%</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">F1</kbd> Help</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">F2</kbd> Settings</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">F3</kbd> Toggle Grid</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">F4</kbd> Toggle Rulers</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">F5</kbd> Toggle Snap</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">F11</kbd> Download PNG</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">F12</kbd> Export JSON</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Movement</h4>
                   <div className="space-y-1 text-gray-600">
                     <div><kbd className="bg-gray-100 px-1 rounded">↑</kbd> Move Up</div>
                     <div><kbd className="bg-gray-100 px-1 rounded">↓</kbd> Move Down</div>
                     <div><kbd className="bg-gray-100 px-1 rounded">←</kbd> Move Left</div>
                     <div><kbd className="bg-gray-100 px-1 rounded">→</kbd> Move Right</div>
-                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+G</kbd> Group</div>
-                    <div><kbd className="bg-gray-100 px-1 rounded">Ctrl+Shift+G</kbd> Ungroup</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Shift+↑</kbd> Move Up 10px</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Shift+↓</kbd> Move Down 10px</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Shift+←</kbd> Move Left 10px</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">Shift+→</kbd> Move Right 10px</div>
                   </div>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Quick Add Elements</h4>
+                  <div className="space-y-1 text-gray-600">
+                    <div><kbd className="bg-gray-100 px-1 rounded">1</kbd> Add Text</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">2</kbd> Add Image</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">3</kbd> Add Price</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">4</kbd> Add Promotion</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">5</kbd> Add Rectangle</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">6</kbd> Add Circle</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">7</kbd> Add Star</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">8</kbd> Add Heart</div>
+                    <div><kbd className="bg-gray-100 px-1 rounded">9</kbd> Add Diamond</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Other</h4>
+                <div className="space-y-1 text-gray-600">
+                  <div><kbd className="bg-gray-100 px-1 rounded">Del</kbd> or <kbd className="bg-gray-100 px-1 rounded">Backspace</kbd> Delete Selected</div>
+                  <div><kbd className="bg-gray-100 px-1 rounded">Esc</kbd> Deselect All</div>
                 </div>
               </div>
               <div className="pt-3 border-t border-gray-200">
