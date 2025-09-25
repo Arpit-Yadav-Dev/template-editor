@@ -19,6 +19,7 @@ import {
   Unlock as UnlockIcon,
   Circle as CircleIcon,
   RotateCcw,
+  RotateCw,
   ZoomIn,
   ZoomOut,
   Upload,
@@ -30,6 +31,7 @@ import {
   Ruler,
   AlignLeft,
   AlignCenter,
+  HelpCircle,
   AlignRight,
   AlignCenterVertical,
   AlignHorizontalDistributeCenter,
@@ -412,7 +414,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           case 'z':
             e.preventDefault();
             if (e.shiftKey) {
-              // redo(); // TODO: Implement redo functionality
+              redo();
             } else {
               undo();
             }
@@ -508,11 +510,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             break;
           case '4':
             e.preventDefault();
-            addElement('promotion');
+            addShape('rectangle');
             break;
           case '5':
             e.preventDefault();
-            addShape('rectangle');
+            addElement('promotion');
             break;
           case '6':
             e.preventDefault();
@@ -1066,6 +1068,17 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     setHistoryIndex((idx) => {
       if (idx <= 0) return idx;
       const nextIdx = idx - 1;
+      const snap = history[nextIdx];
+      setTemplate(snap);
+      templateRef.current = snap;
+      return nextIdx;
+    });
+  }, [history]);
+
+  const redo = useCallback(() => {
+    setHistoryIndex((idx) => {
+      if (idx >= history.length - 1) return idx;
+      const nextIdx = idx + 1;
       const snap = history[nextIdx];
       setTemplate(snap);
       templateRef.current = snap;
@@ -3206,28 +3219,46 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   return (
     <div className="h-screen bg-gray-100 flex">
       {/* Left Toolbar */}
-      <div id="editor-left-toolbar" className="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-4 relative">
+      <div id="editor-left-toolbar" className="w-20 bg-gray-900 flex flex-col items-center py-4 px-2 space-y-3 relative">
+        {/* Section Header */}
+        <div className="text-center mb-2">
+          <div className="text-xs text-gray-400 font-medium">Add Elements</div>
+          <div className="text-[10px] text-gray-500 mt-1">Click to add</div>
+        </div>
+        
         <button
           onClick={() => addElement('text')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Text"
+          className="w-11 h-11 bg-gray-700 hover:bg-blue-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Text (Press 1)"
         >
-          <Type className="w-5 h-5" />
+          <Type className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Text</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            1
+          </div>
         </button>
         <button
           onClick={() => addElement('image')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Image"
+          className="w-11 h-11 bg-gray-700 hover:bg-green-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Image (Press 2)"
         >
-          <ImageIcon className="w-5 h-5" />
+          <ImageIcon className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Image</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            2
+          </div>
         </button>
         <div className="relative">
         <button
             onClick={() => setShowShapePicker((s) => !s)}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Shape"
+          className="w-11 h-11 bg-gray-700 hover:bg-purple-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Shape (Press 4)"
         >
-          <Square className="w-5 h-5" />
+          <Square className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Shape</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            4
+          </div>
         </button>
 
           {showShapePicker && (
@@ -3280,42 +3311,77 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         </div>
         <button
           onClick={() => addElement('price')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Price Tag"
+          className="w-11 h-11 bg-gray-700 hover:bg-yellow-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Price Tag (Press 3)"
         >
-          <DollarSign className="w-5 h-5" />
+          <DollarSign className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Price</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            3
+          </div>
         </button>
         <button
           onClick={() => addElement('promotion')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Promotion Badge"
+          className="w-11 h-11 bg-gray-700 hover:bg-red-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Promotion Badge (Press 5)"
         >
-          <Zap className="w-5 h-5" />
+          <Zap className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Badge</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            5
+          </div>
         </button>
+        {/* Divider */}
+        <div className="w-8 h-px bg-gray-600 my-2"></div>
+        
         <button
           onClick={undo}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Undo"
+          className="w-11 h-11 bg-gray-700 hover:bg-orange-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Undo (Ctrl+Z)"
         >
-          <RotateCcw className="w-5 h-5" />
+          <RotateCcw className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Undo</span>
         </button>
         <button
-          onClick={() => fileInputRef.current?.click()}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Import Template"
+          onClick={redo}
+          className="w-11 h-11 bg-gray-700 hover:bg-orange-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Redo (Ctrl+Shift+Z)"
         >
-          <Upload className="w-5 h-5" />
+          <RotateCw className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Redo</span>
+        </button>
+        {/* Section Header */}
+        <div className="text-center">
+          <div className="text-xs text-gray-400 font-medium mb-2">Tools</div>
+        </div>
+        
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="w-11 h-11 bg-gray-700 hover:bg-indigo-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Import Template (JSON)"
+        >
+          <Upload className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">JSON</span>
         </button>
         <input type="file" ref={fileInputRef} onChange={handleImportTemplate} accept=".json" className="hidden" />
         <button
-          onClick={() => setShowImportHelp(true)}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Import HTML/CSS - Click for instructions"
+          onClick={() => htmlInputRef.current?.click()}
+          className="w-11 h-11 bg-gray-700 hover:bg-green-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Import HTML/CSS"
         >
-          <Upload className="w-5 h-5" />
+          <Upload className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">HTML</span>
         </button>
         <input type="file" ref={htmlInputRef} onChange={handleImportHtml} accept=".html" className="hidden" />
         <input type="file" ref={cssInputRef} accept=".css" className="hidden" />
+        <button
+          onClick={() => setShowImportHelp(true)}
+          className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Import Help - Click for instructions"
+        >
+          <HelpCircle className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Help</span>
+        </button>
       </div>
 
       {/* Main Content */}
@@ -3670,7 +3736,10 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                             transform: 'translateX(-50%)'
                           }}
                         >
-                          <span className="text-sm font-medium">Group: {selectedGroup.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">Group Tools</span>
+                            <span className="text-xs opacity-75">{selectedGroup.name}</span>
+                </div>
                           <button 
                             title={selectedGroup.locked ? "Unlock Group" : "Lock Group"}
                             className={`p-2 rounded hover:bg-purple-600 ${selectedGroup.locked ? 'text-yellow-400' : 'text-white'}`}
@@ -3700,14 +3769,24 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                     
                     return (
                       <div 
-                        className="absolute flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200" 
+                        className="absolute bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg border border-gray-200" 
                         style={{ 
                           zIndex: 2147483647,
                           left: selectedEl.x + selectedEl.width / 2,
-                          top: selectedEl.y - 100,
+                          top: selectedEl.y - 120,
                           transform: 'translateX(-50%)'
                         }}
                       >
+                        {/* Toolbar Header */}
+                        <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium capitalize">{selectedEl.type} Tools</span>
+                            {selectedEl.locked && <LockIcon className="w-4 h-4 text-yellow-600" />}
+                          </div>
+                        </div>
+                        
+                        {/* Toolbar Buttons */}
+                        <div className="flex items-center space-x-1 p-2">
                         {/* + and - buttons - context sensitive */}
                         {selectedEl.type === 'image' ? (
                           <>
@@ -3772,7 +3851,8 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         <button title="Delete (Del)" className="p-1 rounded hover:bg-red-200 text-red-700" onClick={(e) => { e.stopPropagation(); setSelectedIds([selectedEl.id]); deleteSelected(); }}>
                           <Trash2 className="w-7 h-7 text-gray-900" />
                         </button>
-              </div>
+                        </div>
+                      </div>
                     );
                   })()}
                   
@@ -3893,15 +3973,22 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           <div id="editor-right-properties" className="w-80 bg-white border-l border-gray-200 overflow-y-auto flex-shrink-0">
             <div className="p-4 h-full overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Properties</h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Element Properties</h3>
+                  <p className="text-sm text-gray-500">Customize your selected element</p>
+                </div>
                 <Layers className="w-5 h-5 text-gray-400" />
               </div>
 
               {selectedIds.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
                   <Square className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Select an element to edit its properties</p>
-                  <p className="text-sm mt-2">Or use the toolbar to add new elements</p>
+                  <h4 className="font-medium text-gray-700 mb-2">No Element Selected</h4>
+                  <p className="text-sm">Click on any element on the canvas to customize its properties</p>
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg text-left">
+                    <p className="text-xs text-blue-700 font-medium mb-1">💡 Quick Tip:</p>
+                    <p className="text-xs text-blue-600">Use the tools on the left to add new elements to your design</p>
+                  </div>
                 </div>
               ) : (
                 <>

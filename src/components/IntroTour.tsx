@@ -22,7 +22,7 @@ const IntroTour: React.FC<IntroTourProps> = ({ steps, currentIndex, onNext, onPr
   const highlightRef = useRef<HTMLDivElement | null>(null);
   const [rect, setRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
-  // Update rect when step changes
+  // Update rect when step changes - improved cross-platform compatibility
   useEffect(() => {
     if (!step) {
       setRect(null);
@@ -30,26 +30,68 @@ const IntroTour: React.FC<IntroTourProps> = ({ steps, currentIndex, onNext, onPr
     }
     
     const updateRect = () => {
-      const el = document.querySelector(step.targetSelector) as HTMLElement | null;
-      if (!el) {
-        setRect(null);
-        return;
-      }
+      // Try multiple times with increasing delays for better cross-platform compatibility
+      const attemptFind = (attempt = 0) => {
+        const el = document.querySelector(step.targetSelector) as HTMLElement | null;
+        if (!el && attempt < 5) {
+          // Retry with exponential backoff for slower systems
+          setTimeout(() => attemptFind(attempt + 1), 100 * Math.pow(1.5, attempt));
+          return;
+        }
+        
+        if (!el) {
+          console.warn(`[IntroTour] Target not found: ${step.targetSelector}`);
+          setRect(null);
+          return;
+        }
+        
+        // Ensure target is visible and centered with fallback for older browsers
+        try {
+          el.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center', 
+            inline: 'center' 
+          });
+        } catch (e) {
+          // Fallback for older browsers
+          try {
+            el.scrollIntoView();
+          } catch (e2) {
+            // Manual scroll fallback
+            const rect = el.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            window.scrollTo({
+              left: centerX - window.innerWidth / 2,
+              top: centerY - window.innerHeight / 2,
+              behavior: 'smooth'
+            });
+          }
+        }
+        
+        // Get rect after scroll with multiple attempts for stability
+        const getFinalRect = (retryCount = 0) => {
+          const r = el.getBoundingClientRect();
+          
+          // Validate rect is meaningful (not all zeros)
+          if (r.width === 0 && r.height === 0 && retryCount < 3) {
+            setTimeout(() => getFinalRect(retryCount + 1), 50);
+            return;
+          }
+          
+          setRect({ 
+            x: Math.max(0, r.left), 
+            y: Math.max(0, r.top), 
+            width: Math.max(1, r.width), 
+            height: Math.max(1, r.height) 
+          });
+        };
+        
+        // Delay based on attempt count for better stability
+        setTimeout(() => getFinalRect(), 150 + (attempt * 50));
+      };
       
-      // Ensure target is visible and centered
-      try {
-        el.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center', 
-          inline: 'center' 
-        });
-      } catch {}
-      
-      // Get rect after a small delay to ensure scroll has taken effect
-      setTimeout(() => {
-        const r = el.getBoundingClientRect();
-        setRect({ x: r.left, y: r.top, width: r.width, height: r.height });
-      }, 200);
+      attemptFind();
     };
     
     updateRect();
@@ -93,45 +135,57 @@ const IntroTour: React.FC<IntroTourProps> = ({ steps, currentIndex, onNext, onPr
   const boxW = rect ? rect.width + padding * 2 : 0;
   const boxH = rect ? rect.height + padding * 2 : 0;
 
-  // Tooltip position
+  // Tooltip position - improved cross-platform positioning
   const tooltipStyle: React.CSSProperties = (() => {
     const gap = 12;
-    const style: React.CSSProperties = { position: 'fixed', maxWidth: 320, minWidth: 280, width: 'auto' };
+    const tooltipWidth = 320;
+    const tooltipHeight = 220;
+    const style: React.CSSProperties = { 
+      position: 'fixed', 
+      maxWidth: tooltipWidth, 
+      minWidth: 280, 
+      width: 'auto',
+      zIndex: 1001 // Ensure it's above everything
+    };
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
+    
+    // Get viewport dimensions with fallbacks
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1024;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 768;
     
     // Smart placement: avoid edges by choosing best position
     if (rect) {
       const spaceAbove = boxY;
-      const spaceBelow = window.innerHeight - (boxY + boxH);
+      const spaceBelow = viewportHeight - (boxY + boxH);
       const spaceLeft = boxX;
-      const spaceRight = window.innerWidth - (boxX + boxW);
+      const spaceRight = viewportWidth - (boxX + boxW);
       
-      // Choose placement based on available space
-      if (spaceBelow >= 200 && (spaceLeft >= 160 || spaceRight >= 160)) {
+      // Choose placement based on available space with better thresholds
+      if (spaceBelow >= 250 && (spaceLeft >= 180 || spaceRight >= 180)) {
         // Bottom placement (preferred)
-        style.top = boxY + boxH + gap;
-        style.left = clamp(boxX, 20, window.innerWidth - 340);
-      } else if (spaceRight >= 340) {
+        style.top = Math.min(boxY + boxH + gap, viewportHeight - tooltipHeight - 20);
+        style.left = clamp(boxX + boxW/2 - tooltipWidth/2, 20, viewportWidth - tooltipWidth - 20);
+      } else if (spaceRight >= tooltipWidth + 40) {
         // Right placement
-        style.left = boxX + boxW + gap;
-        style.top = clamp(boxY, 20, window.innerHeight - 200);
-      } else if (spaceLeft >= 340) {
+        style.left = Math.min(boxX + boxW + gap, viewportWidth - tooltipWidth - 20);
+        style.top = clamp(boxY + boxH/2 - tooltipHeight/2, 20, viewportHeight - tooltipHeight - 20);
+      } else if (spaceLeft >= tooltipWidth + 40) {
         // Left placement
-        style.left = Math.max(20, boxX - 340 - gap);
-        style.top = clamp(boxY, 20, window.innerHeight - 200);
-      } else if (spaceAbove >= 200 && (spaceLeft >= 160 || spaceRight >= 160)) {
+        style.left = Math.max(20, boxX - tooltipWidth - gap);
+        style.top = clamp(boxY + boxH/2 - tooltipHeight/2, 20, viewportHeight - tooltipHeight - 20);
+      } else if (spaceAbove >= 250 && (spaceLeft >= 180 || spaceRight >= 180)) {
         // Top placement (only if enough space)
-        style.top = Math.max(20, boxY - 200 - gap);
-        style.left = clamp(boxX, 20, window.innerWidth - 340);
+        style.top = Math.max(20, boxY - tooltipHeight - gap);
+        style.left = clamp(boxX + boxW/2 - tooltipWidth/2, 20, viewportWidth - tooltipWidth - 20);
       } else {
-        // Center placement if no good position
-        style.left = clamp((window.innerWidth - 320) / 2, 20, window.innerWidth - 340);
-        style.top = clamp((window.innerHeight - 200) / 2, 20, window.innerHeight - 220);
+        // Center placement if no good position - improved centering
+        style.left = Math.max(20, Math.min((viewportWidth - tooltipWidth) / 2, viewportWidth - tooltipWidth - 20));
+        style.top = Math.max(20, Math.min((viewportHeight - tooltipHeight) / 2, viewportHeight - tooltipHeight - 20));
       }
     } else {
-      // Fallback centered position
-      style.left = clamp((window.innerWidth - 320) / 2, 20, window.innerWidth - 340);
-      style.top = clamp((window.innerHeight - 200) / 2, 20, window.innerHeight - 220);
+      // Fallback centered position - improved centering
+      style.left = Math.max(20, Math.min((viewportWidth - tooltipWidth) / 2, viewportWidth - tooltipWidth - 20));
+      style.top = Math.max(20, Math.min((viewportHeight - tooltipHeight) / 2, viewportHeight - tooltipHeight - 20));
     }
     return style;
   })();

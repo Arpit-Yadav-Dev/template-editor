@@ -207,13 +207,24 @@ export default function App() {
         {currentState === 'editor' && selectedTemplate && (
           <>
             <MenuBoardEditor template={selectedTemplate} onBack={handleBackToTemplateGallery} onSave={handleSaveTemplate} />
-            {/* Restart tour button */}
+            {/* Restart tour button - very compact */}
             <button
               onClick={() => { localStorage.removeItem('intro_seen'); setShowIntro(true); setIntroIndex(0); }}
-              className="fixed bottom-4 right-4 z-[900] px-3 py-2 rounded-lg bg-white/90 backdrop-blur border border-gray-200 shadow hover:bg-white"
-              title="Show Intro"
+              className="fixed bottom-4 right-4 z-[900] group transition-all duration-300 ease-in-out"
+              title="Restart Tour Guide"
             >
-              Show Tour
+              <div className="bg-white/90 backdrop-blur border border-gray-200 shadow-lg rounded-full hover:rounded-xl overflow-hidden transition-all duration-300 ease-in-out">
+                <div className="flex items-center space-x-0 hover:space-x-1 px-1 hover:px-2 py-1 transition-all duration-300">
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-blue-600 group-hover:animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    Tour
+                  </span>
+                </div>
+              </div>
             </button>
             {showIntro && introScope === 'editor' && (
               <IntroTour

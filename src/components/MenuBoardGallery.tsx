@@ -141,6 +141,23 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
     setShowPreviewModal(true);
   };
 
+  // Handle ESC key to close modal
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showPreviewModal) {
+        setShowPreviewModal(false);
+      }
+    };
+
+    if (showPreviewModal) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showPreviewModal]);
+
   return (
     <AnimatedBackground>
       <div id="gallery-root" className="relative min-h-screen">
@@ -375,16 +392,20 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
                         className="absolute inset-0"
                         style={{
                           transform: `scale(${Math.min(
-                            (240 / template.canvasSize.width),
-                            (120 / template.canvasSize.height)
+                            (280 / template.canvasSize.width),
+                            (160 / template.canvasSize.height)
                           )})`,
-                          transformOrigin: 'top left',
+                          transformOrigin: 'center center',
                           width: template.canvasSize.width,
                           height: template.canvasSize.height,
                           backgroundColor: template.backgroundColor || '#ffffff',
                           backgroundImage: template.backgroundImage ? `url(${template.backgroundImage})` : undefined,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
+                          left: '50%',
+                          top: '50%',
+                          marginLeft: `-${template.canvasSize.width / 2}px`,
+                          marginTop: `-${template.canvasSize.height / 2}px`,
                         }}
                       >
                         {template.elements
@@ -547,10 +568,10 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
           >
             <button
               onClick={() => setShowPreviewModal(false)}
-              className="absolute -top-4 -right-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-2xl w-12 h-12 flex items-center justify-center z-10 shadow-xl border-4 border-white transition-all duration-200 hover:scale-110"
+              className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl w-10 h-10 flex items-center justify-center z-10 shadow-lg transition-all duration-200 hover:scale-110"
               aria-label="Close preview"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
 
             <div className="p-8 border-b border-gray-200/50 flex-shrink-0 bg-gradient-to-r from-gray-50 to-white">
@@ -636,12 +657,26 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
                 <div className="text-sm text-gray-500">
                   Click outside or press ESC to close
                 </div>
-                <button
-                  onClick={() => setShowPreviewModal(false)}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  Close Preview
-                </button>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setShowPreviewModal(false)}
+                    className="bg-gray-500 hover:bg-gray-600 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    Close Preview
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (previewTemplate) {
+                        setShowPreviewModal(false);
+                        onSelectTemplate(previewTemplate);
+                      }
+                    }}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Start Editing</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
