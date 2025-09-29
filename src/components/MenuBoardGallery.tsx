@@ -14,6 +14,15 @@ interface MenuBoardGalleryProps {
   onSelectTemplate: (template: MenuBoardTemplate) => void;
   onBack: () => void;
   selectedCanvasSize: CanvasSize;
+  isAuthenticated?: boolean;
+  isGuestMode?: boolean;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    user_type: string;
+    createdAt: string;
+  };
 }
 
 const PreviewRenderer: React.FC<{ template: MenuBoardTemplate }> = ({ template }) => {
@@ -131,10 +140,19 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
   onSelectTemplate,
   onBack,
   selectedCanvasSize,
+  isAuthenticated = false,
+  isGuestMode = false,
+  user,
 }) => {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<MenuBoardTemplate | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // TODO: Future API integration
+  // When user is authenticated, load their custom templates from API
+  // const userTemplates = isAuthenticated ? await apiService.getUserTemplates(user.id) : [];
+  // const allTemplates = [...templates, ...userTemplates];
+  const allTemplates = templates; // For now, use default templates
 
   const handlePreviewClick = (template: MenuBoardTemplate) => {
     setPreviewTemplate(template);
@@ -183,7 +201,10 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
                 </div>
                 <div className="flex-1">
                   <h1 className="text-2xl font-bold text-gray-900">Template Gallery</h1>
-                  <p className="text-sm text-gray-500 mt-1">Choose from professional designs</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {isAuthenticated ? `Welcome back, ${user?.name || user?.email}! Choose from your templates` : 
+                     isGuestMode ? 'Choose from default templates (Guest Mode)' : 'Choose from professional designs'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -309,7 +330,7 @@ export const MenuBoardGallery: React.FC<MenuBoardGalleryProps> = ({
             </div>
           </div>
 
-          {templates.map((template) => (
+          {allTemplates.map((template) => (
                 <div
                   key={template.id}
               className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"

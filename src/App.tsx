@@ -3,23 +3,31 @@ import IntroTour from './components/IntroTour';
 import { CanvasSizeSelector } from './components/CanvasSizeSelector';
 import { MenuBoardGallery } from './components/MenuBoardGallery';
 import AnimatedBackground from './components/AnimatedBackground';
+import LoginPage from './components/LoginPage';
 import type { MenuBoardTemplate, CanvasSize } from './types/MenuBoard';
 import { canvasSizes } from './data/canvasSizes';
 import { AppLoader } from './components/AppLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 import sampleTemplates from './data/sampleTemplates.json';
+import { useAuth } from './hooks/useAuth';
 
 const MenuBoardEditor = lazy(() => import('./components/MenuBoardEditor').then(module => ({ default: module.MenuBoardEditor })));
 
-type AppState = 'canvas-selection' | 'template-gallery' | 'editor' | 'loading';
+type AppState = 'login' | 'canvas-selection' | 'template-gallery' | 'editor' | 'loading';
 
 export default function App() {
-  const [currentState, setCurrentState] = useState<AppState>('canvas-selection');
+  const [currentState, setCurrentState] = useState<AppState>('login');
   const [selectedCanvasSize, setSelectedCanvasSize] = useState<CanvasSize | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<MenuBoardTemplate | null>(null);
   const [templates, setTemplates] = useState<MenuBoardTemplate[]>([]);
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Use auth hook
+  const { isAuthenticated, user, logout: authLogout, isCheckingAuth } = useAuth();
+  
+  // Track if user chose to skip login
+  const [isGuestMode, setIsGuestMode] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
   const [introIndex, setIntroIndex] = useState(0);
   const [introScope, setIntroScope] = useState<'editor' | 'canvas' | 'gallery'>('editor');
@@ -151,34 +159,103 @@ export default function App() {
     alert('Template saved successfully!');
   };
 
+  // Auto-navigate based on auth state
+  useEffect(() => {
+    if (isCheckingAuth) return; // Don't navigate while checking auth
+    
+    if (isAuthenticated && currentState === 'login') {
+      setCurrentState('canvas-selection');
+    } else if (!isAuthenticated && !isGuestMode && currentState !== 'login') {
+      setCurrentState('login');
+    }
+  }, [isAuthenticated, isCheckingAuth, currentState, isGuestMode]);
+
+  // Login handlers
+  const handleLoginSuccess = () => {
+    // Navigation is handled by the main useEffect
+  };
+
+  const handleSkipLogin = () => {
+    // Mark as guest user (no authentication)
+    setIsGuestMode(true);
+    setCurrentState('canvas-selection');
+  };
+
+  const handleLogout = async () => {
+    await authLogout();
+    // Reset all app state
+    setSelectedCanvasSize(null);
+    setSelectedTemplate(null);
+    setTemplates([]);
+    setIsGuestMode(false);
+  };
+
   const filteredCanvasSizes = canvasSizes.filter(size => size.category === 'tv');
 
   const filteredTemplates = selectedCanvasSize
     ? templates.filter((t) => t.isHorizontal === selectedCanvasSize.isHorizontal)
     : templates;
 
-  if (isLoading) {
+  if (isLoading || isCheckingAuth) {
     return <AppLoader />;
   }
 
   return (
     <ErrorBoundary>
       <Suspense fallback={<AppLoader />}>
-            {currentState === 'canvas-selection' && (
+        {currentState === 'login' && (
+          <LoginPage 
+            onLoginSuccess={handleLoginSuccess}
+            onSkip={handleSkipLogin}
+          />
+        )}
+        
+        {currentState === 'canvas-selection' && (
               <AnimatedBackground>
                 <div className="max-w-6xl mx-auto px-6 py-8">
-                  <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl mb-4 shadow-lg">
-                      <div className="text-white font-bold text-sm leading-tight">
-                        <div>DS</div>
-                        <div className="text-xs">MOVI</div>
+                  {/* Header with Logout Button */}
+                  <div className="flex justify-between items-center mb-8">
+                    <div></div>
+                    <div className="text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl mb-4 shadow-lg">
+                        <div className="text-white font-bold text-sm leading-tight">
+                          <div>DS</div>
+                          <div className="text-xs">MOVI</div>
+                        </div>
                       </div>
+                      <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Digital Display Designer</h1>
+                      <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                        Create stunning, professional display boards for restaurants, cafes, and food outlets. 
+                        Choose your display size and start designing your perfect digital signage.
+                      </p>
                     </div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Digital Display Designer</h1>
-                    <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                      Create stunning, professional display boards for restaurants, cafes, and food outlets. 
-                      Choose your display size and start designing your perfect digital signage.
-                    </p>
+                    <div className="flex items-center space-x-3">
+                      {isAuthenticated && user ? (
+                        <>
+                          <span className="text-sm text-gray-600">
+                            Welcome, {user.name || user.email}
+                          </span>
+                          <button
+                            onClick={handleLogout}
+                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            Logout
+                          </button>
+                        </>
+                      ) : isGuestMode ? (
+                        <>
+                          <span className="text-sm text-gray-500">
+                            Guest Mode - Default Templates
+                          </span>
+                          <button
+                            onClick={() => setCurrentState('login')}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            Login
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-200/50 overflow-hidden">
                     <CanvasSizeSelector
@@ -202,6 +279,9 @@ export default function App() {
               height: selectedCanvasSize!.height, 
               isHorizontal: selectedCanvasSize!.isHorizontal ?? true 
             }}
+            isAuthenticated={isAuthenticated}
+            user={user}
+            isGuestMode={isGuestMode}
           />
         )}
         {currentState === 'editor' && selectedTemplate && (
