@@ -151,7 +151,7 @@ class ApiService {
   //   return this.request<LoginResponse>('/auth/refresh');
   // }
 
-  // Template API Methods (for future use)
+  // Template API Methods
   public async getTemplates(): Promise<ApiResponse<any[]>> {
     return this.request('/templates');
   }
@@ -161,6 +161,58 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(template),
     });
+  }
+
+  // New save template method with thumbnail generation
+  public async saveTemplateWithThumbnail(
+    template: any, 
+    thumbnailBlob: Blob
+  ): Promise<ApiResponse<any>> {
+    const formData = new FormData();
+    
+    // Add template data as JSON
+    formData.append('name', template.name);
+    formData.append('description', template.preview || '');
+    formData.append('template_json', JSON.stringify(template));
+    
+    // Add thumbnail image as FormData
+    formData.append('thumbnail_image', thumbnailBlob, 'template-preview.png');
+
+    const url = `${this.baseURL}/templates`;
+    
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+        // Don't set Content-Type for FormData - let browser set it with boundary
+      },
+      mode: 'cors',
+      credentials: 'omit',
+      body: formData,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
   }
 
   public async updateTemplate(id: string, template: any): Promise<ApiResponse<any>> {

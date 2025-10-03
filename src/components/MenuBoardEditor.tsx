@@ -51,7 +51,7 @@ type DragOffsets = Record<string, { dx: number; dy: number }>;
 interface MenuBoardEditorProps {
   template: MenuBoardTemplate;
   onBack: () => void;
-  onSave: (template: MenuBoardTemplate) => void;
+  onSave: (template: MenuBoardTemplate, options?: { thumbnailBlob?: Blob }) => void;
 }
 
 const DEG = '\u00B0';
@@ -61,6 +61,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   onBack,
   onSave,
 }) => {
+  // Thumbnail export settings (adjust as needed)
+  // THUMBNAIL_PIXEL_RATIO: render scale for capture (higher = sharper, larger)
+  // THUMBNAIL_MAX_EDGE: downscale longest edge to this size to keep file small
+  const THUMBNAIL_PIXEL_RATIO = 2; // change to 1..3 to adjust sharpness/size
+  const THUMBNAIL_MAX_EDGE = 1200; // change to adjust preview size/weight
   // Core state
   const [template, setTemplate] = useState<MenuBoardTemplate>(initialTemplate);
   const templateRef = useRef(template);
@@ -78,6 +83,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   const [selectionRect, setSelectionRect] = useState<SelectionRectangle | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Zoom & viewport
   const [zoom, setZoom] = useState(0.50);
@@ -3595,7 +3601,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             </div>
             {/* Save Button */}
             <button
-              onClick={() => {
+              onClick={async () => {
                 // Check if template has proper details
                 const hasName = templateRef.current.name && templateRef.current.name.trim() !== '';
                 const hasDescription = templateRef.current.preview && templateRef.current.preview.trim() !== '';
@@ -3606,7 +3612,59 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   return;
                 }
                 
-                onSave(templateRef.current);
+                // Generate PNG using the same export logic and pass blob back
+                const canvasElement = innerRef.current;
+                if (!canvasElement) { onSave(templateRef.current); return; }
+                try {
+                  // Temporarily hide any selection UI
+                  const prevSelectedIds = selectedIds;
+                  const prevSelectionRect = selectionRect;
+                  setIsExporting(true);
+                  setSelectedIds([]);
+                  setSelectionRect(null);
+                  await new Promise(res => setTimeout(res, 0));
+                  // Reuse the exact manual export path to produce a dataUrl
+                  let dataUrl: string;
+                  try {
+                    dataUrl = await domToImage.toPng(canvasElement, {
+                      width: templateRef.current.canvasSize.width,
+                      height: templateRef.current.canvasSize.height,
+                      style: { transform: 'scale(1)', transformOrigin: 'top left' },
+                      quality: 1.0,
+                      pixelRatio: THUMBNAIL_PIXEL_RATIO,
+                      bgcolor: '#ffffff',
+                      filter: (node) => {
+                        if (node.nodeType === 1 && (node as Element).tagName === 'IMG') {
+                          const img = node as HTMLImageElement;
+                          return img.complete && img.naturalWidth > 0;
+                        }
+                        return true;
+                      }
+                    });
+                  } catch {
+                    dataUrl = await domToImage.toPng(canvasElement);
+                  }
+                  // Downscale to keep size reasonable while staying sharp
+                  const img = new Image();
+                  await new Promise((r) => { img.onload = () => r(null); img.src = dataUrl; });
+                  const maxEdge = THUMBNAIL_MAX_EDGE;
+                  const scale = Math.min(1, Math.min(maxEdge / img.width, maxEdge / img.height));
+                  const targetW = Math.max(1, Math.round(img.width * scale));
+                  const targetH = Math.max(1, Math.round(img.height * scale));
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  canvas.width = targetW; canvas.height = targetH;
+                  if (ctx) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, targetW, targetH); }
+                  const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), 'image/png'));
+                  onSave(templateRef.current, { thumbnailBlob: blob });
+                } catch {
+                  onSave(templateRef.current);
+                } finally {
+                  // Restore selection UI
+                  setSelectedIds(prevSelectedIds);
+                  setSelectionRect(prevSelectionRect);
+                  setIsExporting(false);
+                }
               }}
               className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-lg transition-all shadow-sm"
             >
@@ -3701,7 +3759,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 ))}
 
                 {/* Selection Rectangle */}
-                {selectionRect && (
+                {!isExporting && selectionRect && (
                   <div
                     className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none z-20"
                     style={{
@@ -3715,6 +3773,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
                 {/* Unscaled inner canvas (we scale this only) */}
                 <div
+                  id="editor-inner-canvas"
                   ref={innerRef}
                   className="absolute top-0 left-0"
                   style={{
@@ -3736,7 +3795,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   
                   
                   {/* Floating toolbars */}
-                  {selectedIds.length === 1 && (() => {
+                  {!isExporting && selectedIds.length === 1 && (() => {
                     const selectedEl = templateRef.current.elements.find(e => e.id === selectedIds[0]);
                     const selectedGroup = templateRef.current.groups?.find(g => g.id === selectedIds[0]);
                     
@@ -5630,7 +5689,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     commitHistory();
                     setShowTemplateSettings(false);
                     // Auto-save after settings are completed
@@ -5648,7 +5707,58 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         backgroundColor: template.backgroundColor,
                         isHorizontal: template.isHorizontal
                       };
-                      onSave(updatedTemplate);
+                      // Generate PNG using the same export logic and pass blob back
+                      const canvasElement = innerRef.current;
+                      if (!canvasElement) { onSave(updatedTemplate); return; }
+                      try {
+                        // Temporarily hide any selection UI
+                        const prevSelectedIds = selectedIds;
+                        const prevSelectionRect = selectionRect;
+                        setIsExporting(true);
+                        setSelectedIds([]);
+                        setSelectionRect(null);
+                        await new Promise(res => setTimeout(res, 0));
+                        let dataUrl: string;
+                        try {
+                          dataUrl = await domToImage.toPng(canvasElement, {
+                            width: updatedTemplate.canvasSize.width,
+                            height: updatedTemplate.canvasSize.height,
+                            style: { transform: 'scale(1)', transformOrigin: 'top left' },
+                            quality: 1.0,
+                            pixelRatio: THUMBNAIL_PIXEL_RATIO,
+                            bgcolor: '#ffffff',
+                            filter: (node) => {
+                              if (node.nodeType === 1 && (node as Element).tagName === 'IMG') {
+                                const img = node as HTMLImageElement;
+                                return img.complete && img.naturalWidth > 0;
+                              }
+                              return true;
+                            }
+                          });
+                        } catch {
+                          dataUrl = await domToImage.toPng(canvasElement);
+                        }
+                        // Downscale to keep size reasonable while staying sharp
+                        const img = new Image();
+                        await new Promise((r) => { img.onload = () => r(null); img.src = dataUrl; });
+                        const maxEdge = THUMBNAIL_MAX_EDGE;
+                        const scale = Math.min(1, Math.min(maxEdge / img.width, maxEdge / img.height));
+                        const targetW = Math.max(1, Math.round(img.width * scale));
+                        const targetH = Math.max(1, Math.round(img.height * scale));
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = targetW; canvas.height = targetH;
+                        if (ctx) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, targetW, targetH); }
+                        const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), 'image/png'));
+                        onSave(updatedTemplate, { thumbnailBlob: blob });
+                      } catch {
+                        onSave(updatedTemplate);
+                      } finally {
+                        // Restore selection UI
+                        setSelectedIds(prevSelectedIds);
+                        setSelectionRect(prevSelectionRect);
+                        setIsExporting(false);
+                      }
                     }
                   }}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

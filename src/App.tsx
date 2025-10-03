@@ -10,6 +10,8 @@ import { AppLoader } from './components/AppLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 import sampleTemplates from './data/sampleTemplates.json';
 import { useAuth } from './hooks/useAuth';
+import { apiService } from './services/api';
+// Thumbnail blob now comes from MenuBoardEditor using the exact export logic
 
 const MenuBoardEditor = lazy(() => import('./components/MenuBoardEditor').then(module => ({ default: module.MenuBoardEditor })));
 
@@ -154,9 +156,62 @@ export default function App() {
     }, 1500); // Extended to 1.5 seconds
   };
 
-  const handleSaveTemplate = (updated: MenuBoardTemplate) => {
+  const handleSaveTemplate = async (updated: MenuBoardTemplate, options?: { thumbnailBlob?: Blob }) => {
     console.log('Saving template:', updated);
-    alert('Template saved successfully!');
+    
+    try {
+      // Show loading state
+      setIsLoading(true);
+      
+      // Prefer blob from editor (generated with the exact manual logic)
+      const blob = options?.thumbnailBlob;
+      if (!blob) {
+        throw new Error('Thumbnail blob not generated');
+      }
+      
+      // Config: toggle auto-download and API upload
+      const downloadForVerification = false; // set true to auto-download PNG on save
+      const uploadEnabled = true; // set false to skip server upload
+
+      if (downloadForVerification) {
+        try {
+          const localUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = localUrl;
+          a.download = `${updated.name || 'template'}-thumbnail.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(localUrl);
+          console.log('✅ Local thumbnail download triggered');
+        } catch (dlErr) {
+          console.warn('⚠️ Failed to auto-download thumbnail locally (non-blocking):', dlErr);
+        }
+      }
+
+      if (!uploadEnabled) {
+        console.log('⏭️ Skipping API upload until PNG verified.');
+        return;
+      }
+
+      console.log('✅ Thumbnail generated, uploading to API...');
+      
+      // Save template with thumbnail using the new API
+      const response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      
+      if (response.success) {
+        console.log('✅ Template saved successfully!', response.data);
+        alert('Template saved successfully!');
+      } else {
+        throw new Error(response.error || 'Failed to save template');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to save template:', error);
+      alert(`Failed to save template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Auto-navigate based on auth state
@@ -280,7 +335,7 @@ export default function App() {
               isHorizontal: selectedCanvasSize!.isHorizontal ?? true 
             }}
             isAuthenticated={isAuthenticated}
-            user={user}
+            user={user || undefined}
             isGuestMode={isGuestMode}
           />
         )}
