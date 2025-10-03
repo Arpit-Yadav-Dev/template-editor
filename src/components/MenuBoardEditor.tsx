@@ -44,6 +44,7 @@ import {
 import domToImage from 'dom-to-image';
 import { MenuBoardElement, MenuBoardTemplate, MenuBoardGroup, SelectionRectangle } from '../types/MenuBoard';
 import { canvasSizes } from '../data/canvasSizes';
+import ImageLibraryPanel from './ImageLibraryPanel';
 
 type DragOffsets = Record<string, { dx: number; dy: number }>;
 
@@ -127,6 +128,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   
   // Download loading state
   const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Image library panel
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
+  const [imageLibraryContext, setImageLibraryContext] = useState<'new-element' | 'existing-element' | 'shape-image'>('new-element');
+  const [imageLibraryTargetId, setImageLibraryTargetId] = useState<string | null>(null);
   
   // Debug function to test canvas state
   const debugCanvas = () => {
@@ -3248,6 +3254,16 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             2
           </div>
         </button>
+        <button
+          onClick={() => setShowImageLibrary(true)}
+          className="w-11 h-11 bg-gray-700 hover:bg-indigo-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Image Library"
+        >
+          <svg className="w-4 h-4 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className="text-[10px] font-medium leading-tight">Library</span>
+        </button>
         <div className="relative">
         <button
             onClick={() => setShowShapePicker((s) => !s)}
@@ -4280,32 +4296,36 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         {el.type === 'image' && (
                           <div className="mt-3 space-y-2">
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Image URL</label>
-                              <input
-                                type="url"
-                                value={el.imageUrl || ''}
-                                onChange={(e) => updateElement(id, { imageUrl: e.target.value })}
-                                onBlur={() => commitHistory()}
-                                className="w-full p-2 border border-gray-300 rounded text-sm"
-                                placeholder="Enter image URL..."
-                              />
+                              <label className="block text-xs text-gray-500 mb-1">Choose from Library</label>
+                              <button
+                                onClick={() => {
+                                  setImageLibraryContext('existing-element');
+                                  setImageLibraryTargetId(id);
+                                  setShowImageLibrary(true);
+                                }}
+                                className="w-full bg-blue-100 hover:bg-blue-200 px-3 py-2 rounded-lg text-sm text-blue-700 font-medium"
+                              >
+                                Browse Library
+                              </button>
                             </div>
 
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">Or Upload Image</label>
-                              <button
-                                onClick={() => imageUploadRef.current?.click()}
-                                className="w-full bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg text-sm"
-                              >
-                                Choose File
-                              </button>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                ref={imageUploadRef}
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e, id)}
-                              />
+                            <div className="relative">
+                              <details className="group">
+                                <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 mb-1 flex items-center">
+                                  <span>Advanced: Custom URL</span>
+                                  <svg className="w-3 h-3 ml-1 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </summary>
+                                <input
+                                  type="url"
+                                  value={el.imageUrl || ''}
+                                  onChange={(e) => updateElement(id, { imageUrl: e.target.value })}
+                                  onBlur={() => commitHistory()}
+                                  className="w-full p-2 border border-gray-300 rounded text-sm mt-1"
+                                  placeholder="Enter image URL..."
+                                />
+                              </details>
                             </div>
                           </div>
                         )}
@@ -4501,39 +4521,20 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                                 className="w-full p-2 border border-gray-300 rounded text-sm mb-2"
                               />
                               
-                              {/* File Upload */}
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      try {
-                                        const dataUrl = await new Promise<string>((resolve, reject) => {
-                                          const reader = new FileReader();
-                                          reader.onload = () => resolve(reader.result as string);
-                                          reader.onerror = reject;
-                                          reader.readAsDataURL(file);
-                                        });
-                                        updateElement(id, { shapeImageUrl: dataUrl }, true);
-                                        console.log('Image uploaded successfully');
-                                      } catch (error) {
-                                        console.error('Failed to upload image:', error);
-                                      }
-                                    }
-                                  }}
-                                  className="hidden"
-                                  id={`shape-image-upload-${id}`}
-                                />
-                                <label
-                                  htmlFor={`shape-image-upload-${id}`}
-                                  className="flex items-center space-x-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors cursor-pointer text-sm"
-                                >
-                                  <Upload className="w-4 h-4" />
-                                  <span>Upload Image</span>
-                                </label>
-                              </div>
+                              {/* Library Button */}
+                              <button
+                                onClick={() => {
+                                  setImageLibraryContext('shape-image');
+                                  setImageLibraryTargetId(id);
+                                  setShowImageLibrary(true);
+                                }}
+                                className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>Choose from Library</span>
+                              </button>
                               
                               {el.shapeImageUrl && (
                                 <div className="mt-3 space-y-2">
@@ -5881,6 +5882,44 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           </div>
         </div>
       )}
+
+      {/* Image Library Panel */}
+      <ImageLibraryPanel
+        isOpen={showImageLibrary}
+        onClose={() => setShowImageLibrary(false)}
+        context={imageLibraryContext}
+        onSelectImage={(imageUrl, context) => {
+          if (context === 'new-element') {
+            // When an image is selected from the library, add it as a new image element
+            const newElement: MenuBoardElement = {
+              id: `element-${Date.now()}`,
+              type: 'image',
+              x: 100,
+              y: 100,
+              width: 200,
+              height: 200,
+              imageUrl: imageUrl,
+              zIndex: template.elements.length + 1,
+            };
+            
+            setTemplate(prev => ({
+              ...prev,
+              elements: [...prev.elements, newElement]
+            }));
+            
+            setSelectedIds([newElement.id]);
+          } else if (context === 'existing-element' && imageLibraryTargetId) {
+            // Update existing element's image
+            updateElement(imageLibraryTargetId, { imageUrl: imageUrl }, true);
+          } else if (context === 'shape-image' && imageLibraryTargetId) {
+            // Update shape's background image
+            updateElement(imageLibraryTargetId, { shapeImageUrl: imageUrl }, true);
+          }
+          
+          setShowImageLibrary(false);
+          setImageLibraryTargetId(null);
+        }}
+      />
 
     </div>
   );
