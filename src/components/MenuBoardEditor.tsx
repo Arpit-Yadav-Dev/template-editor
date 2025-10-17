@@ -19,6 +19,7 @@ import {
   Unlock as UnlockIcon,
   Circle as CircleIcon,
   RotateCcw,
+  RotateCw,
   ZoomIn,
   ZoomOut,
   Upload,
@@ -30,6 +31,7 @@ import {
   Ruler,
   AlignLeft,
   AlignCenter,
+  HelpCircle,
   AlignRight,
   AlignCenterVertical,
   AlignHorizontalDistributeCenter,
@@ -42,13 +44,14 @@ import {
 import domToImage from 'dom-to-image';
 import { MenuBoardElement, MenuBoardTemplate, MenuBoardGroup, SelectionRectangle } from '../types/MenuBoard';
 import { canvasSizes } from '../data/canvasSizes';
+import ImageLibraryPanel from './ImageLibraryPanel';
 
 type DragOffsets = Record<string, { dx: number; dy: number }>;
 
 interface MenuBoardEditorProps {
   template: MenuBoardTemplate;
   onBack: () => void;
-  onSave: (template: MenuBoardTemplate) => void;
+  onSave: (template: MenuBoardTemplate, options?: { thumbnailBlob?: Blob }) => void;
 }
 
 const DEG = '\u00B0';
@@ -58,6 +61,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   onBack,
   onSave,
 }) => {
+  // Thumbnail export settings (adjust as needed)
+  // THUMBNAIL_PIXEL_RATIO: render scale for capture (higher = sharper, larger)
+  // THUMBNAIL_MAX_EDGE: downscale longest edge to this size to keep file small
+  const THUMBNAIL_PIXEL_RATIO = 2; // change to 1..3 to adjust sharpness/size
+  const THUMBNAIL_MAX_EDGE = 1200; // change to adjust preview size/weight
   // Core state
   const [template, setTemplate] = useState<MenuBoardTemplate>(initialTemplate);
   const templateRef = useRef(template);
@@ -75,6 +83,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   const [selectionRect, setSelectionRect] = useState<SelectionRectangle | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Zoom & viewport
   const [zoom, setZoom] = useState(0.50);
@@ -125,6 +134,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   
   // Download loading state
   const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Image library panel
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
+  const [imageLibraryContext, setImageLibraryContext] = useState<'new-element' | 'existing-element' | 'shape-image'>('new-element');
+  const [imageLibraryTargetId, setImageLibraryTargetId] = useState<string | null>(null);
   
   // Debug function to test canvas state
   const debugCanvas = () => {
@@ -412,7 +426,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           case 'z':
             e.preventDefault();
             if (e.shiftKey) {
-              // redo(); // TODO: Implement redo functionality
+              redo();
             } else {
               undo();
             }
@@ -508,11 +522,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             break;
           case '4':
             e.preventDefault();
-            addElement('promotion');
+            addShape('rectangle');
             break;
           case '5':
             e.preventDefault();
-            addShape('rectangle');
+            addElement('promotion');
             break;
           case '6':
             e.preventDefault();
@@ -1066,6 +1080,17 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     setHistoryIndex((idx) => {
       if (idx <= 0) return idx;
       const nextIdx = idx - 1;
+      const snap = history[nextIdx];
+      setTemplate(snap);
+      templateRef.current = snap;
+      return nextIdx;
+    });
+  }, [history]);
+
+  const redo = useCallback(() => {
+    setHistoryIndex((idx) => {
+      if (idx >= history.length - 1) return idx;
+      const nextIdx = idx + 1;
       const snap = history[nextIdx];
       setTemplate(snap);
       templateRef.current = snap;
@@ -3206,28 +3231,56 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   return (
     <div className="h-screen bg-gray-100 flex">
       {/* Left Toolbar */}
-      <div id="editor-left-toolbar" className="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-4 relative">
+      <div id="editor-left-toolbar" className="w-20 bg-gray-900 flex flex-col items-center py-4 px-2 space-y-3 relative">
+        {/* Section Header */}
+        <div className="text-center mb-2">
+          <div className="text-xs text-gray-400 font-medium">Add Elements</div>
+          <div className="text-[10px] text-gray-500 mt-1">Click to add</div>
+        </div>
+        
         <button
           onClick={() => addElement('text')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Text"
+          className="w-11 h-11 bg-gray-700 hover:bg-blue-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Text (Press 1)"
         >
-          <Type className="w-5 h-5" />
+          <Type className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Text</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            1
+          </div>
         </button>
         <button
           onClick={() => addElement('image')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Image"
+          className="w-11 h-11 bg-gray-700 hover:bg-green-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Image (Press 2)"
         >
-          <ImageIcon className="w-5 h-5" />
+          <ImageIcon className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Image</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            2
+          </div>
+        </button>
+        <button
+          onClick={() => setShowImageLibrary(true)}
+          className="w-11 h-11 bg-gray-700 hover:bg-indigo-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Image Library"
+        >
+          <svg className="w-4 h-4 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className="text-[10px] font-medium leading-tight">Library</span>
         </button>
         <div className="relative">
         <button
             onClick={() => setShowShapePicker((s) => !s)}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Shape"
+          className="w-11 h-11 bg-gray-700 hover:bg-purple-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Shape (Press 4)"
         >
-          <Square className="w-5 h-5" />
+          <Square className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Shape</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            4
+          </div>
         </button>
 
           {showShapePicker && (
@@ -3280,42 +3333,77 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
         </div>
         <button
           onClick={() => addElement('price')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Price Tag"
+          className="w-11 h-11 bg-gray-700 hover:bg-yellow-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Price Tag (Press 3)"
         >
-          <DollarSign className="w-5 h-5" />
+          <DollarSign className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Price</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            3
+          </div>
         </button>
         <button
           onClick={() => addElement('promotion')}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Add Promotion Badge"
+          className="w-11 h-11 bg-gray-700 hover:bg-red-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group relative"
+          title="Add Promotion Badge (Press 5)"
         >
-          <Zap className="w-5 h-5" />
+          <Zap className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Badge</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 scale-0 group-hover:scale-100 shadow-lg">
+            5
+          </div>
         </button>
+        {/* Divider */}
+        <div className="w-8 h-px bg-gray-600 my-2"></div>
+        
         <button
           onClick={undo}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Undo"
+          className="w-11 h-11 bg-gray-700 hover:bg-orange-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Undo (Ctrl+Z)"
         >
-          <RotateCcw className="w-5 h-5" />
+          <RotateCcw className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Undo</span>
         </button>
         <button
-          onClick={() => fileInputRef.current?.click()}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Import Template"
+          onClick={redo}
+          className="w-11 h-11 bg-gray-700 hover:bg-orange-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Redo (Ctrl+Shift+Z)"
         >
-          <Upload className="w-5 h-5" />
+          <RotateCw className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Redo</span>
+        </button>
+        {/* Section Header */}
+        <div className="text-center">
+          <div className="text-xs text-gray-400 font-medium mb-2">Tools</div>
+        </div>
+        
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="w-11 h-11 bg-gray-700 hover:bg-indigo-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Import Template (JSON)"
+        >
+          <Upload className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">JSON</span>
         </button>
         <input type="file" ref={fileInputRef} onChange={handleImportTemplate} accept=".json" className="hidden" />
         <button
-          onClick={() => setShowImportHelp(true)}
-          className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white transition-colors"
-          title="Import HTML/CSS - Click for instructions"
+          onClick={() => htmlInputRef.current?.click()}
+          className="w-11 h-11 bg-gray-700 hover:bg-green-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Import HTML/CSS"
         >
-          <Upload className="w-5 h-5" />
+          <Upload className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">HTML</span>
         </button>
         <input type="file" ref={htmlInputRef} onChange={handleImportHtml} accept=".html" className="hidden" />
         <input type="file" ref={cssInputRef} accept=".css" className="hidden" />
+        <button
+          onClick={() => setShowImportHelp(true)}
+          className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-lg flex flex-col items-center justify-center text-white transition-all duration-150 hover:scale-105 group"
+          title="Import Help - Click for instructions"
+        >
+          <HelpCircle className="w-4 h-4 mb-1" />
+          <span className="text-[10px] font-medium leading-tight">Help</span>
+        </button>
       </div>
 
       {/* Main Content */}
@@ -3352,7 +3440,15 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             {/* View Controls */}
             <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
               <button 
-                onClick={() => setShowTemplateSettings(true)} 
+                onClick={() => {
+                  // Initialize saveAction to 'update' for user templates by default
+                  if (template.isUserTemplate && !template.saveAction) {
+                    const updated = { ...templateRef.current, saveAction: 'update' as const };
+                    setTemplate(updated);
+                    templateRef.current = updated;
+                  }
+                  setShowTemplateSettings(true);
+                }} 
                 className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
                 title="Template Settings"
               >
@@ -3513,18 +3609,98 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             </div>
             {/* Save Button */}
             <button
-              onClick={() => {
-                // Check if template has proper details
+              onClick={async () => {
+                // Debug logging
+                console.log('🔍 Save button clicked');
+                console.log('Template flags:', {
+                  isUserTemplate: template.isUserTemplate,
+                  isDefaultTemplate: template.isDefaultTemplate,
+                  name: template.name,
+                  preview: template.preview,
+                });
+                
+                // For user templates, ALWAYS show modal to choose Update vs Save as New
+                // For default templates, ALWAYS show modal with info
+                // For others, only show if details are missing
                 const hasName = templateRef.current.name && templateRef.current.name.trim() !== '';
                 const hasDescription = templateRef.current.preview && templateRef.current.preview.trim() !== '';
+                const isUserOrDefaultTemplate = template.isUserTemplate || template.isDefaultTemplate;
                 
-                if (!hasName || !hasDescription || templateRef.current.category === 'custom') {
-                  // Show template settings modal if details are missing
+                console.log('Should show modal:', {
+                  isUserOrDefaultTemplate,
+                  hasName,
+                  hasDescription,
+                  category: templateRef.current.category,
+                });
+                
+                if (isUserOrDefaultTemplate || !hasName || !hasDescription || templateRef.current.category === 'custom') {
+                  // Initialize saveAction to 'update' for user templates by default
+                  if (template.isUserTemplate && !template.saveAction) {
+                    const updated = { ...templateRef.current, saveAction: 'update' as const };
+                    setTemplate(updated);
+                    templateRef.current = updated;
+                  }
+                  // Show template settings modal
+                  console.log('✅ Showing template settings modal');
                   setShowTemplateSettings(true);
                   return;
                 }
                 
-                onSave(templateRef.current);
+                console.log('⚠️ Skipping modal, directly saving...');
+                
+                // Generate PNG using the same export logic and pass blob back
+                const canvasElement = innerRef.current;
+                if (!canvasElement) { onSave(templateRef.current); return; }
+                try {
+                  // Temporarily hide any selection UI
+                  const prevSelectedIds = selectedIds;
+                  const prevSelectionRect = selectionRect;
+                  setIsExporting(true);
+                  setSelectedIds([]);
+                  setSelectionRect(null);
+                  await new Promise(res => setTimeout(res, 0));
+                  // Reuse the exact manual export path to produce a dataUrl
+                  let dataUrl: string;
+                  try {
+                    dataUrl = await domToImage.toPng(canvasElement, {
+                      width: templateRef.current.canvasSize.width,
+                      height: templateRef.current.canvasSize.height,
+                      style: { transform: 'scale(1)', transformOrigin: 'top left' },
+                      quality: 1.0,
+                      pixelRatio: THUMBNAIL_PIXEL_RATIO,
+                      bgcolor: '#ffffff',
+                      filter: (node) => {
+                        if (node.nodeType === 1 && (node as Element).tagName === 'IMG') {
+                          const img = node as HTMLImageElement;
+                          return img.complete && img.naturalWidth > 0;
+                        }
+                        return true;
+                      }
+                    });
+                  } catch {
+                    dataUrl = await domToImage.toPng(canvasElement);
+                  }
+                  // Downscale to keep size reasonable while staying sharp
+                  const img = new Image();
+                  await new Promise((r) => { img.onload = () => r(null); img.src = dataUrl; });
+                  const maxEdge = THUMBNAIL_MAX_EDGE;
+                  const scale = Math.min(1, Math.min(maxEdge / img.width, maxEdge / img.height));
+                  const targetW = Math.max(1, Math.round(img.width * scale));
+                  const targetH = Math.max(1, Math.round(img.height * scale));
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  canvas.width = targetW; canvas.height = targetH;
+                  if (ctx) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, targetW, targetH); }
+                  const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), 'image/png'));
+                  onSave(templateRef.current, { thumbnailBlob: blob });
+                } catch {
+                  onSave(templateRef.current);
+                } finally {
+                  // Restore selection UI
+                  setSelectedIds(prevSelectedIds);
+                  setSelectionRect(prevSelectionRect);
+                  setIsExporting(false);
+                }
               }}
               className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-lg transition-all shadow-sm"
             >
@@ -3619,7 +3795,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 ))}
 
                 {/* Selection Rectangle */}
-                {selectionRect && (
+                {!isExporting && selectionRect && (
                   <div
                     className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none z-20"
                     style={{
@@ -3633,6 +3809,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
                 {/* Unscaled inner canvas (we scale this only) */}
                 <div
+                  id="editor-inner-canvas"
                   ref={innerRef}
                   className="absolute top-0 left-0"
                   style={{
@@ -3654,7 +3831,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   
                   
                   {/* Floating toolbars */}
-                  {selectedIds.length === 1 && (() => {
+                  {!isExporting && selectedIds.length === 1 && (() => {
                     const selectedEl = templateRef.current.elements.find(e => e.id === selectedIds[0]);
                     const selectedGroup = templateRef.current.groups?.find(g => g.id === selectedIds[0]);
                     
@@ -3670,7 +3847,10 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                             transform: 'translateX(-50%)'
                           }}
                         >
-                          <span className="text-sm font-medium">Group: {selectedGroup.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">Group Tools</span>
+                            <span className="text-xs opacity-75">{selectedGroup.name}</span>
+                </div>
                           <button 
                             title={selectedGroup.locked ? "Unlock Group" : "Lock Group"}
                             className={`p-2 rounded hover:bg-purple-600 ${selectedGroup.locked ? 'text-yellow-400' : 'text-white'}`}
@@ -3700,14 +3880,24 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                     
                     return (
                       <div 
-                        className="absolute flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200" 
+                        className="absolute bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg border border-gray-200" 
                         style={{ 
                           zIndex: 2147483647,
                           left: selectedEl.x + selectedEl.width / 2,
-                          top: selectedEl.y - 100,
+                          top: selectedEl.y - 120,
                           transform: 'translateX(-50%)'
                         }}
                       >
+                        {/* Toolbar Header */}
+                        <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium capitalize">{selectedEl.type} Tools</span>
+                            {selectedEl.locked && <LockIcon className="w-4 h-4 text-yellow-600" />}
+                          </div>
+                        </div>
+                        
+                        {/* Toolbar Buttons */}
+                        <div className="flex items-center space-x-1 p-2">
                         {/* + and - buttons - context sensitive */}
                         {selectedEl.type === 'image' ? (
                           <>
@@ -3772,7 +3962,8 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         <button title="Delete (Del)" className="p-1 rounded hover:bg-red-200 text-red-700" onClick={(e) => { e.stopPropagation(); setSelectedIds([selectedEl.id]); deleteSelected(); }}>
                           <Trash2 className="w-7 h-7 text-gray-900" />
                         </button>
-              </div>
+                        </div>
+                      </div>
                     );
                   })()}
                   
@@ -3893,15 +4084,22 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           <div id="editor-right-properties" className="w-80 bg-white border-l border-gray-200 overflow-y-auto flex-shrink-0">
             <div className="p-4 h-full overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Properties</h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Element Properties</h3>
+                  <p className="text-sm text-gray-500">Customize your selected element</p>
+                </div>
                 <Layers className="w-5 h-5 text-gray-400" />
               </div>
 
               {selectedIds.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
                   <Square className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Select an element to edit its properties</p>
-                  <p className="text-sm mt-2">Or use the toolbar to add new elements</p>
+                  <h4 className="font-medium text-gray-700 mb-2">No Element Selected</h4>
+                  <p className="text-sm">Click on any element on the canvas to customize its properties</p>
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg text-left">
+                    <p className="text-xs text-blue-700 font-medium mb-1">💡 Quick Tip:</p>
+                    <p className="text-xs text-blue-600">Use the tools on the left to add new elements to your design</p>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -4193,32 +4391,36 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         {el.type === 'image' && (
                           <div className="mt-3 space-y-2">
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Image URL</label>
-                              <input
-                                type="url"
-                                value={el.imageUrl || ''}
-                                onChange={(e) => updateElement(id, { imageUrl: e.target.value })}
-                                onBlur={() => commitHistory()}
-                                className="w-full p-2 border border-gray-300 rounded text-sm"
-                                placeholder="Enter image URL..."
-                              />
+                              <label className="block text-xs text-gray-500 mb-1">Choose from Library</label>
+                              <button
+                                onClick={() => {
+                                  setImageLibraryContext('existing-element');
+                                  setImageLibraryTargetId(id);
+                                  setShowImageLibrary(true);
+                                }}
+                                className="w-full bg-blue-100 hover:bg-blue-200 px-3 py-2 rounded-lg text-sm text-blue-700 font-medium"
+                              >
+                                Browse Library
+                              </button>
                             </div>
 
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">Or Upload Image</label>
-                              <button
-                                onClick={() => imageUploadRef.current?.click()}
-                                className="w-full bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg text-sm"
-                              >
-                                Choose File
-                              </button>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                ref={imageUploadRef}
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e, id)}
-                              />
+                            <div className="relative">
+                              <details className="group">
+                                <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 mb-1 flex items-center">
+                                  <span>Advanced: Custom URL</span>
+                                  <svg className="w-3 h-3 ml-1 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </summary>
+                                <input
+                                  type="url"
+                                  value={el.imageUrl || ''}
+                                  onChange={(e) => updateElement(id, { imageUrl: e.target.value })}
+                                  onBlur={() => commitHistory()}
+                                  className="w-full p-2 border border-gray-300 rounded text-sm mt-1"
+                                  placeholder="Enter image URL..."
+                                />
+                              </details>
                             </div>
                           </div>
                         )}
@@ -4414,39 +4616,20 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                                 className="w-full p-2 border border-gray-300 rounded text-sm mb-2"
                               />
                               
-                              {/* File Upload */}
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      try {
-                                        const dataUrl = await new Promise<string>((resolve, reject) => {
-                                          const reader = new FileReader();
-                                          reader.onload = () => resolve(reader.result as string);
-                                          reader.onerror = reject;
-                                          reader.readAsDataURL(file);
-                                        });
-                                        updateElement(id, { shapeImageUrl: dataUrl }, true);
-                                        console.log('Image uploaded successfully');
-                                      } catch (error) {
-                                        console.error('Failed to upload image:', error);
-                                      }
-                                    }
-                                  }}
-                                  className="hidden"
-                                  id={`shape-image-upload-${id}`}
-                                />
-                                <label
-                                  htmlFor={`shape-image-upload-${id}`}
-                                  className="flex items-center space-x-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors cursor-pointer text-sm"
-                                >
-                                  <Upload className="w-4 h-4" />
-                                  <span>Upload Image</span>
-                                </label>
-                              </div>
+                              {/* Library Button */}
+                              <button
+                                onClick={() => {
+                                  setImageLibraryContext('shape-image');
+                                  setImageLibraryTargetId(id);
+                                  setShowImageLibrary(true);
+                                }}
+                                className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition-colors text-sm font-medium"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>Choose from Library</span>
+                              </button>
                               
                               {el.shapeImageUrl && (
                                 <div className="mt-3 space-y-2">
@@ -5534,6 +5717,74 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   </div>
                 </div>
               </div>
+              
+              {/* Save Action Choice for User Templates */}
+              {template.isUserTemplate && (
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Save Action</label>
+                  <div className="space-y-2">
+                    <label className="flex items-start space-x-3 p-3 border-2 border-blue-500 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="update"
+                        defaultChecked
+                        onChange={(e) => {
+                          const updated = { ...templateRef.current, saveAction: 'update' as const };
+                          setTemplate(updated);
+                          templateRef.current = updated;
+                        }}
+                        className="mt-1 w-4 h-4 text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-900">Update Template</div>
+                        <div className="text-sm text-blue-700">
+                          Save changes to this template (overwrites existing)
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-start space-x-3 p-3 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="saveAsNew"
+                        onChange={(e) => {
+                          const updated = { ...templateRef.current, saveAction: 'saveAsNew' as const };
+                          setTemplate(updated);
+                          templateRef.current = updated;
+                        }}
+                        className="mt-1 w-4 h-4 text-green-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">Save as New Template</div>
+                        <div className="text-sm text-gray-600">
+                          Create a new template (keeps original unchanged)
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+              
+              {/* Info message for Default Templates */}
+              {template.isDefaultTemplate && (
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-white text-xs">ℹ</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-900 text-sm">Default Template</div>
+                        <div className="text-sm text-blue-700 mt-1">
+                          This will create a new template in your gallery. The default template will remain unchanged for all users.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   onClick={() => setShowTemplateSettings(false)}
@@ -5542,7 +5793,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     commitHistory();
                     setShowTemplateSettings(false);
                     // Auto-save after settings are completed
@@ -5560,7 +5811,58 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         backgroundColor: template.backgroundColor,
                         isHorizontal: template.isHorizontal
                       };
-                      onSave(updatedTemplate);
+                      // Generate PNG using the same export logic and pass blob back
+                      const canvasElement = innerRef.current;
+                      if (!canvasElement) { onSave(updatedTemplate); return; }
+                      try {
+                        // Temporarily hide any selection UI
+                        const prevSelectedIds = selectedIds;
+                        const prevSelectionRect = selectionRect;
+                        setIsExporting(true);
+                        setSelectedIds([]);
+                        setSelectionRect(null);
+                        await new Promise(res => setTimeout(res, 0));
+                        let dataUrl: string;
+                        try {
+                          dataUrl = await domToImage.toPng(canvasElement, {
+                            width: updatedTemplate.canvasSize.width,
+                            height: updatedTemplate.canvasSize.height,
+                            style: { transform: 'scale(1)', transformOrigin: 'top left' },
+                            quality: 1.0,
+                            pixelRatio: THUMBNAIL_PIXEL_RATIO,
+                            bgcolor: '#ffffff',
+                            filter: (node) => {
+                              if (node.nodeType === 1 && (node as Element).tagName === 'IMG') {
+                                const img = node as HTMLImageElement;
+                                return img.complete && img.naturalWidth > 0;
+                              }
+                              return true;
+                            }
+                          });
+                        } catch {
+                          dataUrl = await domToImage.toPng(canvasElement);
+                        }
+                        // Downscale to keep size reasonable while staying sharp
+                        const img = new Image();
+                        await new Promise((r) => { img.onload = () => r(null); img.src = dataUrl; });
+                        const maxEdge = THUMBNAIL_MAX_EDGE;
+                        const scale = Math.min(1, Math.min(maxEdge / img.width, maxEdge / img.height));
+                        const targetW = Math.max(1, Math.round(img.width * scale));
+                        const targetH = Math.max(1, Math.round(img.height * scale));
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = targetW; canvas.height = targetH;
+                        if (ctx) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, targetW, targetH); }
+                        const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), 'image/png'));
+                        onSave(updatedTemplate, { thumbnailBlob: blob });
+                      } catch {
+                        onSave(updatedTemplate);
+                      } finally {
+                        // Restore selection UI
+                        setSelectedIds(prevSelectedIds);
+                        setSelectionRect(prevSelectionRect);
+                        setIsExporting(false);
+                      }
                     }
                   }}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -5794,6 +6096,44 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           </div>
         </div>
       )}
+
+      {/* Image Library Panel */}
+      <ImageLibraryPanel
+        isOpen={showImageLibrary}
+        onClose={() => setShowImageLibrary(false)}
+        context={imageLibraryContext}
+        onSelectImage={(imageUrl, context) => {
+          if (context === 'new-element') {
+            // When an image is selected from the library, add it as a new image element
+            const newElement: MenuBoardElement = {
+              id: `element-${Date.now()}`,
+              type: 'image',
+              x: 100,
+              y: 100,
+              width: 200,
+              height: 200,
+              imageUrl: imageUrl,
+              zIndex: template.elements.length + 1,
+            };
+            
+            setTemplate(prev => ({
+              ...prev,
+              elements: [...prev.elements, newElement]
+            }));
+            
+            setSelectedIds([newElement.id]);
+          } else if (context === 'existing-element' && imageLibraryTargetId) {
+            // Update existing element's image
+            updateElement(imageLibraryTargetId, { imageUrl: imageUrl }, true);
+          } else if (context === 'shape-image' && imageLibraryTargetId) {
+            // Update shape's background image
+            updateElement(imageLibraryTargetId, { shapeImageUrl: imageUrl }, true);
+          }
+          
+          setShowImageLibrary(false);
+          setImageLibraryTargetId(null);
+        }}
+      />
 
     </div>
   );

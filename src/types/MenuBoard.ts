@@ -105,4 +105,8 @@ export interface MenuBoardTemplate {
   elements: MenuBoardElement[];
   groups: MenuBoardGroup[];
   previewImageUrl?: string; // URL to the PNG preview image
+  // Template source flags for save logic
+  isDefaultTemplate?: boolean; // True if this is a public/default template
+  isUserTemplate?: boolean; // True if this is user's own template
+  saveAction?: 'update' | 'saveAsNew'; // User's choice when saving their template
 }

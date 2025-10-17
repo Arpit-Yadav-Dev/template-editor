@@ -3,23 +3,43 @@ import IntroTour from './components/IntroTour';
 import { CanvasSizeSelector } from './components/CanvasSizeSelector';
 import { MenuBoardGallery } from './components/MenuBoardGallery';
 import AnimatedBackground from './components/AnimatedBackground';
+import LoginPage from './components/LoginPage';
 import type { MenuBoardTemplate, CanvasSize } from './types/MenuBoard';
 import { canvasSizes } from './data/canvasSizes';
 import { AppLoader } from './components/AppLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 import sampleTemplates from './data/sampleTemplates.json';
+import { useAuth } from './hooks/useAuth';
+import { apiService } from './services/api';
+import { SaveSuccessModal } from './components/SaveSuccessModal';
+import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+// Thumbnail blob now comes from MenuBoardEditor using the exact export logic
 
 const MenuBoardEditor = lazy(() => import('./components/MenuBoardEditor').then(module => ({ default: module.MenuBoardEditor })));
 
-type AppState = 'canvas-selection' | 'template-gallery' | 'editor' | 'loading';
+type AppState = 'login' | 'canvas-selection' | 'template-gallery' | 'editor' | 'loading';
 
 export default function App() {
-  const [currentState, setCurrentState] = useState<AppState>('canvas-selection');
+  const [currentState, setCurrentState] = useState<AppState>('login');
   const [selectedCanvasSize, setSelectedCanvasSize] = useState<CanvasSize | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<MenuBoardTemplate | null>(null);
   const [templates, setTemplates] = useState<MenuBoardTemplate[]>([]);
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Save success modal state
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [saveAction, setSaveAction] = useState<'saved' | 'updated'>('saved');
+  
+  // Delete confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<MenuBoardTemplate | null>(null);
+  
+  // Use auth hook
+  const { isAuthenticated, user, logout: authLogout, isCheckingAuth } = useAuth();
+  
+  // Track if user chose to skip login
+  const [isGuestMode, setIsGuestMode] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
   const [introIndex, setIntroIndex] = useState(0);
   const [introScope, setIntroScope] = useState<'editor' | 'canvas' | 'gallery'>('editor');
@@ -146,9 +166,154 @@ export default function App() {
     }, 1500); // Extended to 1.5 seconds
   };
 
-  const handleSaveTemplate = (updated: MenuBoardTemplate) => {
+  const handleSaveTemplate = async (updated: MenuBoardTemplate, options?: { thumbnailBlob?: Blob }) => {
     console.log('Saving template:', updated);
-    alert('Template saved successfully!');
+    
+    try {
+      // Show loading state
+      setIsLoading(true);
+      
+      // Prefer blob from editor (generated with the exact manual logic)
+      const blob = options?.thumbnailBlob;
+      if (!blob) {
+        throw new Error('Thumbnail blob not generated');
+      }
+      
+      // Config: toggle auto-download and API upload
+      const downloadForVerification = false; // set true to auto-download PNG on save
+      const uploadEnabled = true; // set false to skip server upload
+
+      if (downloadForVerification) {
+        try {
+          const localUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = localUrl;
+          a.download = `${updated.name || 'template'}-thumbnail.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(localUrl);
+          console.log('✅ Local thumbnail download triggered');
+        } catch (dlErr) {
+          console.warn('⚠️ Failed to auto-download thumbnail locally (non-blocking):', dlErr);
+        }
+      }
+
+      if (!uploadEnabled) {
+        console.log('⏭️ Skipping API upload until PNG verified.');
+        return;
+      }
+
+      console.log('✅ Thumbnail generated, uploading to API...');
+      
+      // Determine save action based on template metadata
+      // Check if template has 'isDefaultTemplate' flag or 'isUserTemplate' flag
+      const isDefaultTemplate = updated.isDefaultTemplate === true;
+      const isUserTemplate = updated.isUserTemplate === true;
+      
+      let response;
+      
+      if (isDefaultTemplate) {
+        // Default templates ALWAYS create new (never update the original)
+        console.log('✨ Creating new template from default template');
+        response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      } else if (isUserTemplate && updated.saveAction === 'update') {
+        // User chose to UPDATE their existing template
+        console.log('🔄 Updating existing user template with ID:', updated.id);
+        response = await apiService.updateTemplateWithThumbnail(updated.id, updated, blob);
+      } else if (isUserTemplate && updated.saveAction === 'saveAsNew') {
+        // User chose to SAVE AS NEW (create a copy)
+        console.log('✨ Creating new template (copy of existing)');
+        response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      } else {
+        // Default: CREATE new template (blank templates, etc.)
+        console.log('✨ Creating new template');
+        response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      }
+      
+      if (response.success) {
+        const action = isUserTemplate && updated.saveAction === 'update' ? 'updated' : 'saved';
+        console.log(`✅ Template ${action} successfully!`, response.data);
+        
+        // Show success modal with countdown
+        setSaveAction(action);
+        setShowSaveSuccess(true);
+      } else {
+        throw new Error(response.error || 'Failed to save template');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to save template:', error);
+      // Show error in a better way - you can replace this with a toast later
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to save template: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle delete template
+  const handleDeleteTemplate = async (template: MenuBoardTemplate) => {
+    setTemplateToDelete(template);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+
+    try {
+      setIsLoading(true);
+      setShowDeleteConfirm(false);
+
+      console.log('🗑️ Deleting template:', templateToDelete.id);
+      const response = await apiService.deleteTemplateById(templateToDelete.id);
+
+      if (response.success) {
+        console.log('✅ Template deleted successfully!');
+        // Navigate back to gallery
+        handleBackToTemplateGallery();
+      } else {
+        throw new Error(response.error || 'Failed to delete template');
+      }
+    } catch (error) {
+      console.error('❌ Failed to delete template:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to delete template: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+      setTemplateToDelete(null);
+    }
+  };
+
+  // Auto-navigate based on auth state
+  useEffect(() => {
+    if (isCheckingAuth) return; // Don't navigate while checking auth
+    
+    if (isAuthenticated && currentState === 'login') {
+      setCurrentState('canvas-selection');
+    } else if (!isAuthenticated && !isGuestMode && currentState !== 'login') {
+      setCurrentState('login');
+    }
+  }, [isAuthenticated, isCheckingAuth, currentState, isGuestMode]);
+
+  // Login handlers
+  const handleLoginSuccess = () => {
+    // Navigation is handled by the main useEffect
+  };
+
+  const handleSkipLogin = () => {
+    // Mark as guest user (no authentication)
+    setIsGuestMode(true);
+    setCurrentState('canvas-selection');
+  };
+
+  const handleLogout = async () => {
+    await authLogout();
+    // Reset all app state
+    setSelectedCanvasSize(null);
+    setSelectedTemplate(null);
+    setTemplates([]);
+    setIsGuestMode(false);
   };
 
   const filteredCanvasSizes = canvasSizes.filter(size => size.category === 'tv');
@@ -157,28 +322,66 @@ export default function App() {
     ? templates.filter((t) => t.isHorizontal === selectedCanvasSize.isHorizontal)
     : templates;
 
-  if (isLoading) {
+  if (isLoading || isCheckingAuth) {
     return <AppLoader />;
   }
 
   return (
     <ErrorBoundary>
       <Suspense fallback={<AppLoader />}>
-            {currentState === 'canvas-selection' && (
+        {currentState === 'login' && (
+          <LoginPage 
+            onLoginSuccess={handleLoginSuccess}
+            onSkip={handleSkipLogin}
+          />
+        )}
+        
+        {currentState === 'canvas-selection' && (
               <AnimatedBackground>
                 <div className="max-w-6xl mx-auto px-6 py-8">
-                  <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl mb-4 shadow-lg">
-                      <div className="text-white font-bold text-sm leading-tight">
-                        <div>DS</div>
-                        <div className="text-xs">MOVI</div>
+                  {/* Header with Logout Button */}
+                  <div className="flex justify-between items-center mb-8">
+                    <div></div>
+                    <div className="text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl mb-4 shadow-lg">
+                        <div className="text-white font-bold text-sm leading-tight">
+                          <div>DS</div>
+                          <div className="text-xs">MOVI</div>
+                        </div>
                       </div>
+                      <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Digital Display Designer</h1>
+                      <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                        Create stunning, professional display boards for restaurants, cafes, and food outlets. 
+                        Choose your display size and start designing your perfect digital signage.
+                      </p>
                     </div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Digital Display Designer</h1>
-                    <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                      Create stunning, professional display boards for restaurants, cafes, and food outlets. 
-                      Choose your display size and start designing your perfect digital signage.
-                    </p>
+                    <div className="flex items-center space-x-3">
+                      {isAuthenticated && user ? (
+                        <>
+                          <span className="text-sm text-gray-600">
+                            Welcome, {user.name || user.email}
+                          </span>
+                          <button
+                            onClick={handleLogout}
+                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            Logout
+                          </button>
+                        </>
+                      ) : isGuestMode ? (
+                        <>
+                          <span className="text-sm text-gray-500">
+                            Guest Mode - Default Templates
+                          </span>
+                          <button
+                            onClick={() => setCurrentState('login')}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            Login
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-gray-200/50 overflow-hidden">
                     <CanvasSizeSelector
@@ -197,23 +400,38 @@ export default function App() {
             templates={filteredTemplates}
             onSelectTemplate={handleTemplateSelect}
             onBack={handleBackToCanvasSelection}
+            onDeleteTemplate={handleDeleteTemplate}
             selectedCanvasSize={{ 
               width: selectedCanvasSize!.width, 
               height: selectedCanvasSize!.height, 
               isHorizontal: selectedCanvasSize!.isHorizontal ?? true 
             }}
+            isAuthenticated={isAuthenticated}
+            user={user || undefined}
+            isGuestMode={isGuestMode}
           />
         )}
         {currentState === 'editor' && selectedTemplate && (
           <>
             <MenuBoardEditor template={selectedTemplate} onBack={handleBackToTemplateGallery} onSave={handleSaveTemplate} />
-            {/* Restart tour button */}
+            {/* Restart tour button - very compact */}
             <button
               onClick={() => { localStorage.removeItem('intro_seen'); setShowIntro(true); setIntroIndex(0); }}
-              className="fixed bottom-4 right-4 z-[900] px-3 py-2 rounded-lg bg-white/90 backdrop-blur border border-gray-200 shadow hover:bg-white"
-              title="Show Intro"
+              className="fixed bottom-4 right-4 z-[900] group transition-all duration-300 ease-in-out"
+              title="Restart Tour Guide"
             >
-              Show Tour
+              <div className="bg-white/90 backdrop-blur border border-gray-200 shadow-lg rounded-full hover:rounded-xl overflow-hidden transition-all duration-300 ease-in-out">
+                <div className="flex items-center space-x-0 hover:space-x-1 px-1 hover:px-2 py-1 transition-all duration-300">
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-blue-600 group-hover:animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    Tour
+                  </span>
+                </div>
+              </div>
             </button>
             {showIntro && introScope === 'editor' && (
               <IntroTour
@@ -312,6 +530,27 @@ export default function App() {
           />
         )}
       </Suspense>
+
+      {/* Save Success Modal */}
+      <SaveSuccessModal
+        isOpen={showSaveSuccess}
+        action={saveAction}
+        onComplete={() => {
+          setShowSaveSuccess(false);
+          handleBackToTemplateGallery();
+        }}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        templateName={templateToDelete?.name || ''}
+        onConfirm={confirmDeleteTemplate}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setTemplateToDelete(null);
+        }}
+      />
     </ErrorBoundary>
   );
 }

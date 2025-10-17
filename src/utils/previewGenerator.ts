@@ -13,6 +13,113 @@ export interface PreviewGenerationResult {
 }
 
 /**
+ * Generate a PNG blob for API upload
+ * This function generates a PNG blob that can be sent to the API
+ */
+export async function generateTemplateThumbnailBlob(
+  template: MenuBoardTemplate,
+  canvasElement: HTMLElement
+): Promise<{ success: boolean; blob?: Blob; error?: string }> {
+  try {
+    console.log('🎨 Generating thumbnail blob for template:', template.name);
+    
+    // Wait for any pending renders and images to load
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Pre-process images to handle broken URLs (same as download function)
+    const images = canvasElement.querySelectorAll('img');
+    console.log('Found', images.length, 'images to check');
+    
+    for (const img of images) {
+      if (!img.complete || img.naturalWidth === 0) {
+        console.log('Broken image detected:', img.src);
+        // Replace broken images with a placeholder
+        img.style.display = 'none';
+        const placeholder = document.createElement('div');
+        placeholder.style.width = img.style.width || img.width + 'px';
+        placeholder.style.height = img.style.height || img.height + 'px';
+        placeholder.style.backgroundColor = '#f0f0f0';
+        placeholder.style.border = '2px dashed #ccc';
+        placeholder.style.display = 'flex';
+        placeholder.style.alignItems = 'center';
+        placeholder.style.justifyContent = 'center';
+        placeholder.style.fontSize = '12px';
+        placeholder.style.color = '#666';
+        placeholder.textContent = 'Image';
+        img.parentNode?.insertBefore(placeholder, img);
+      }
+    }
+
+    // Try multiple export methods (same as download function)
+    let dataUrl: string;
+    
+    try {
+      // Method 1: Try with explicit options and skip broken images
+      dataUrl = await domToImage.toPng(canvasElement, {
+        width: template.canvasSize.width,
+        height: template.canvasSize.height,
+        style: {
+          transform: "scale(1)",
+          transformOrigin: "top left",
+        },
+        quality: 1.0,
+        pixelRatio: 1,
+        bgcolor: '#ffffff',
+        filter: (node) => {
+          // Skip broken images
+          if (node.nodeType === 1 && (node as Element).tagName === 'IMG') {
+            const img = node as HTMLImageElement;
+            return img.complete && img.naturalWidth > 0;
+          }
+          return true;
+        }
+      });
+      console.log('✅ Thumbnail blob generation successful (Method 1)');
+    } catch (method1Error) {
+      console.log('⚠️ Method 1 failed, trying method 2:', method1Error);
+      
+      try {
+        // Method 2: Try with minimal options and skip broken images
+        dataUrl = await domToImage.toPng(canvasElement, {
+          bgcolor: '#ffffff',
+          filter: (node) => {
+            // Skip broken images
+            if (node.nodeType === 1 && (node as Element).tagName === 'IMG') {
+              const img = node as HTMLImageElement;
+              return img.complete && img.naturalWidth > 0;
+            }
+            return true;
+          }
+        });
+        console.log('✅ Thumbnail blob generation successful (Method 2)');
+      } catch (method2Error) {
+        console.log('⚠️ Method 2 failed, trying method 3:', method2Error);
+        
+        // Method 3: Basic fallback
+        dataUrl = await domToImage.toPng(canvasElement);
+        console.log('✅ Thumbnail blob generation successful (Method 3)');
+      }
+    }
+
+    // Convert data URL to blob
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    
+    return {
+      success: true,
+      blob
+    };
+    
+  } catch (error) {
+    console.error('❌ Thumbnail blob generation failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
  * Generate a PNG preview for a template
  * Uses the same logic as the canvas download function
  */
