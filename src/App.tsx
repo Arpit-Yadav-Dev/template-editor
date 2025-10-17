@@ -11,6 +11,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import sampleTemplates from './data/sampleTemplates.json';
 import { useAuth } from './hooks/useAuth';
 import { apiService } from './services/api';
+import { SaveSuccessModal } from './components/SaveSuccessModal';
+import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 // Thumbnail blob now comes from MenuBoardEditor using the exact export logic
 
 const MenuBoardEditor = lazy(() => import('./components/MenuBoardEditor').then(module => ({ default: module.MenuBoardEditor })));
@@ -24,6 +26,14 @@ export default function App() {
   const [templates, setTemplates] = useState<MenuBoardTemplate[]>([]);
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Save success modal state
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [saveAction, setSaveAction] = useState<'saved' | 'updated'>('saved');
+  
+  // Delete confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<MenuBoardTemplate | null>(null);
   
   // Use auth hook
   const { isAuthenticated, user, logout: authLogout, isCheckingAuth } = useAuth();
@@ -196,21 +206,82 @@ export default function App() {
 
       console.log('✅ Thumbnail generated, uploading to API...');
       
-      // Save template with thumbnail using the new API
-      const response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      // Determine save action based on template metadata
+      // Check if template has 'isDefaultTemplate' flag or 'isUserTemplate' flag
+      const isDefaultTemplate = updated.isDefaultTemplate === true;
+      const isUserTemplate = updated.isUserTemplate === true;
+      
+      let response;
+      
+      if (isDefaultTemplate) {
+        // Default templates ALWAYS create new (never update the original)
+        console.log('✨ Creating new template from default template');
+        response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      } else if (isUserTemplate && updated.saveAction === 'update') {
+        // User chose to UPDATE their existing template
+        console.log('🔄 Updating existing user template with ID:', updated.id);
+        response = await apiService.updateTemplateWithThumbnail(updated.id, updated, blob);
+      } else if (isUserTemplate && updated.saveAction === 'saveAsNew') {
+        // User chose to SAVE AS NEW (create a copy)
+        console.log('✨ Creating new template (copy of existing)');
+        response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      } else {
+        // Default: CREATE new template (blank templates, etc.)
+        console.log('✨ Creating new template');
+        response = await apiService.saveTemplateWithThumbnail(updated, blob);
+      }
       
       if (response.success) {
-        console.log('✅ Template saved successfully!', response.data);
-        alert('Template saved successfully!');
+        const action = isUserTemplate && updated.saveAction === 'update' ? 'updated' : 'saved';
+        console.log(`✅ Template ${action} successfully!`, response.data);
+        
+        // Show success modal with countdown
+        setSaveAction(action);
+        setShowSaveSuccess(true);
       } else {
         throw new Error(response.error || 'Failed to save template');
       }
       
     } catch (error) {
       console.error('❌ Failed to save template:', error);
-      alert(`Failed to save template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Show error in a better way - you can replace this with a toast later
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to save template: ${errorMessage}`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle delete template
+  const handleDeleteTemplate = async (template: MenuBoardTemplate) => {
+    setTemplateToDelete(template);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+
+    try {
+      setIsLoading(true);
+      setShowDeleteConfirm(false);
+
+      console.log('🗑️ Deleting template:', templateToDelete.id);
+      const response = await apiService.deleteTemplateById(templateToDelete.id);
+
+      if (response.success) {
+        console.log('✅ Template deleted successfully!');
+        // Navigate back to gallery
+        handleBackToTemplateGallery();
+      } else {
+        throw new Error(response.error || 'Failed to delete template');
+      }
+    } catch (error) {
+      console.error('❌ Failed to delete template:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to delete template: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+      setTemplateToDelete(null);
     }
   };
 
@@ -329,6 +400,7 @@ export default function App() {
             templates={filteredTemplates}
             onSelectTemplate={handleTemplateSelect}
             onBack={handleBackToCanvasSelection}
+            onDeleteTemplate={handleDeleteTemplate}
             selectedCanvasSize={{ 
               width: selectedCanvasSize!.width, 
               height: selectedCanvasSize!.height, 
@@ -458,6 +530,27 @@ export default function App() {
           />
         )}
       </Suspense>
+
+      {/* Save Success Modal */}
+      <SaveSuccessModal
+        isOpen={showSaveSuccess}
+        action={saveAction}
+        onComplete={() => {
+          setShowSaveSuccess(false);
+          handleBackToTemplateGallery();
+        }}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        templateName={templateToDelete?.name || ''}
+        onConfirm={confirmDeleteTemplate}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setTemplateToDelete(null);
+        }}
+      />
     </ErrorBoundary>
   );
 }

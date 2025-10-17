@@ -3440,7 +3440,15 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             {/* View Controls */}
             <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
               <button 
-                onClick={() => setShowTemplateSettings(true)} 
+                onClick={() => {
+                  // Initialize saveAction to 'update' for user templates by default
+                  if (template.isUserTemplate && !template.saveAction) {
+                    const updated = { ...templateRef.current, saveAction: 'update' as const };
+                    setTemplate(updated);
+                    templateRef.current = updated;
+                  }
+                  setShowTemplateSettings(true);
+                }} 
                 className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
                 title="Template Settings"
               >
@@ -3602,15 +3610,43 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
             {/* Save Button */}
             <button
               onClick={async () => {
-                // Check if template has proper details
+                // Debug logging
+                console.log('🔍 Save button clicked');
+                console.log('Template flags:', {
+                  isUserTemplate: template.isUserTemplate,
+                  isDefaultTemplate: template.isDefaultTemplate,
+                  name: template.name,
+                  preview: template.preview,
+                });
+                
+                // For user templates, ALWAYS show modal to choose Update vs Save as New
+                // For default templates, ALWAYS show modal with info
+                // For others, only show if details are missing
                 const hasName = templateRef.current.name && templateRef.current.name.trim() !== '';
                 const hasDescription = templateRef.current.preview && templateRef.current.preview.trim() !== '';
+                const isUserOrDefaultTemplate = template.isUserTemplate || template.isDefaultTemplate;
                 
-                if (!hasName || !hasDescription || templateRef.current.category === 'custom') {
-                  // Show template settings modal if details are missing
+                console.log('Should show modal:', {
+                  isUserOrDefaultTemplate,
+                  hasName,
+                  hasDescription,
+                  category: templateRef.current.category,
+                });
+                
+                if (isUserOrDefaultTemplate || !hasName || !hasDescription || templateRef.current.category === 'custom') {
+                  // Initialize saveAction to 'update' for user templates by default
+                  if (template.isUserTemplate && !template.saveAction) {
+                    const updated = { ...templateRef.current, saveAction: 'update' as const };
+                    setTemplate(updated);
+                    templateRef.current = updated;
+                  }
+                  // Show template settings modal
+                  console.log('✅ Showing template settings modal');
                   setShowTemplateSettings(true);
                   return;
                 }
+                
+                console.log('⚠️ Skipping modal, directly saving...');
                 
                 // Generate PNG using the same export logic and pass blob back
                 const canvasElement = innerRef.current;
@@ -5681,6 +5717,74 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                   </div>
                 </div>
               </div>
+              
+              {/* Save Action Choice for User Templates */}
+              {template.isUserTemplate && (
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Save Action</label>
+                  <div className="space-y-2">
+                    <label className="flex items-start space-x-3 p-3 border-2 border-blue-500 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="update"
+                        defaultChecked
+                        onChange={(e) => {
+                          const updated = { ...templateRef.current, saveAction: 'update' as const };
+                          setTemplate(updated);
+                          templateRef.current = updated;
+                        }}
+                        className="mt-1 w-4 h-4 text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-900">Update Template</div>
+                        <div className="text-sm text-blue-700">
+                          Save changes to this template (overwrites existing)
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-start space-x-3 p-3 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="saveAsNew"
+                        onChange={(e) => {
+                          const updated = { ...templateRef.current, saveAction: 'saveAsNew' as const };
+                          setTemplate(updated);
+                          templateRef.current = updated;
+                        }}
+                        className="mt-1 w-4 h-4 text-green-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">Save as New Template</div>
+                        <div className="text-sm text-gray-600">
+                          Create a new template (keeps original unchanged)
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+              
+              {/* Info message for Default Templates */}
+              {template.isDefaultTemplate && (
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-white text-xs">ℹ</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-900 text-sm">Default Template</div>
+                        <div className="text-sm text-blue-700 mt-1">
+                          This will create a new template in your gallery. The default template will remain unchanged for all users.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   onClick={() => setShowTemplateSettings(false)}

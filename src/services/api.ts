@@ -152,6 +152,23 @@ class ApiService {
   // }
 
   // Template API Methods
+  
+  // Get default templates (public templates available to all users)
+  public async getDefaultTemplates(page: number = 1, limit: number = 10): Promise<ApiResponse<any>> {
+    return this.request(`/templates/default?page=${page}&limit=${limit}`);
+  }
+
+  // Get user's custom templates
+  public async getUserTemplates(page: number = 1, limit: number = 10): Promise<ApiResponse<any>> {
+    return this.request(`/templates?page=${page}&limit=${limit}`);
+  }
+
+  // Get template by ID (returns complete template JSON)
+  public async getTemplateById(templateId: string): Promise<ApiResponse<any>> {
+    return this.request(`/templates/${templateId}`);
+  }
+
+  // Legacy method - kept for backward compatibility
   public async getTemplates(): Promise<ApiResponse<any[]>> {
     return this.request('/templates');
   }
@@ -215,6 +232,60 @@ class ApiService {
     }
   }
 
+  // Update existing template with thumbnail
+  public async updateTemplateWithThumbnail(
+    templateId: string,
+    template: any, 
+    thumbnailBlob: Blob
+  ): Promise<ApiResponse<any>> {
+    const formData = new FormData();
+    
+    // Add template data as JSON
+    formData.append('name', template.name);
+    formData.append('description', template.preview || '');
+    formData.append('template_json', JSON.stringify(template));
+    
+    // Add thumbnail image as FormData
+    formData.append('thumbnail_image', thumbnailBlob, 'template-preview.png');
+
+    const url = `${this.baseURL}/templates/${templateId}`;
+    
+    const config: RequestInit = {
+      method: 'PUT',
+      headers: {
+        'Accept': 'application/json',
+        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+        // Don't set Content-Type for FormData - let browser set it with boundary
+      },
+      mode: 'cors',
+      credentials: 'omit',
+      body: formData,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
+  }
+
+  // Legacy update method (JSON only, no thumbnail)
   public async updateTemplate(id: string, template: any): Promise<ApiResponse<any>> {
     return this.request(`/templates/${id}`, {
       method: 'PUT',
@@ -226,6 +297,43 @@ class ApiService {
     return this.request(`/templates/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // Delete template with proper error handling
+  public async deleteTemplateById(templateId: string): Promise<ApiResponse<any>> {
+    const url = `${this.baseURL}/templates/${templateId}`;
+    
+    const config: RequestInit = {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+      },
+      mode: 'cors',
+      credentials: 'omit',
+    };
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
   }
 }
 
