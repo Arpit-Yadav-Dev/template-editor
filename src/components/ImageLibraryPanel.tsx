@@ -12,6 +12,7 @@ import {
   Trash2,
   Eye
 } from 'lucide-react';
+import { apiService } from '../services/api';
 
 export interface ImageItem {
   id: string;
@@ -44,6 +45,11 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [displayCount, setDisplayCount] = useState(12); // For infinite scrolling - reduced for better performance
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // API Images state
+  const [apiImages, setApiImages] = useState<ImageItem[]>([]);
+  const [isLoadingApiImages, setIsLoadingApiImages] = useState(false);
+  const [apiImagesError, setApiImagesError] = useState<string | null>(null);
 
   // Enhanced stock images with more variety
   const stockImages: ImageItem[] = [
@@ -98,6 +104,87 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
     }
   }, []);
 
+  // Load API images
+  const loadApiImages = useCallback(async () => {
+    if (activeCategory !== 'my-uploads') return;
+    
+    setIsLoadingApiImages(true);
+    setApiImagesError(null);
+    
+    try {
+      const response = await apiService.getUserImages(1, 100);
+      if (response.success && response.data) {
+        const images: ImageItem[] = response.data.images.map((img: any) => ({
+          id: img.id,
+          name: img.filename || img.name || `image-${img.id.slice(0, 8)}`,
+          url: img.image_url, // Your API uses 'image_url' field
+          category: 'my-uploads' as const,
+          size: parseInt(img.file_size) || 0,
+          uploadedAt: new Date(img.created_at),
+          isLocal: false
+        }));
+        setApiImages(images);
+      } else {
+        setApiImagesError(response.error || 'Failed to load images');
+      }
+    } catch (error) {
+      setApiImagesError('Network error loading images');
+    } finally {
+      setIsLoadingApiImages(false);
+    }
+  }, [activeCategory]);
+
+  // Upload image to API
+  const uploadImageToApi = useCallback(async (file: File): Promise<boolean> => {
+    try {
+      const response = await apiService.uploadImage(file, 'menu-editor');
+      console.log('Upload response:', response); // Debug log
+      
+      if (response.success && response.data) {
+        // Add to local state immediately - map based on your API response structure
+        const newImage: ImageItem = {
+          id: response.data.id,
+          name: response.data.filename || file.name,
+          url: response.data.url || response.data.image_url, // Try both possible field names
+          category: 'my-uploads',
+          isLocal: false,
+          size: file.size,
+          uploadedAt: new Date()
+        };
+        setApiImages(prev => [newImage, ...prev]);
+        console.log('Image added to gallery:', newImage); // Debug log
+        return true;
+      } else {
+        console.error('Upload failed:', response.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      return false;
+    }
+  }, []);
+
+  // Delete image from API
+  const deleteApiImage = useCallback(async (imageId: string): Promise<boolean> => {
+    try {
+      console.log('Calling delete API for image:', imageId);
+      const response = await apiService.deleteImage(imageId);
+      console.log('Delete API response:', response);
+      
+      if (response.success) {
+        setApiImages(prev => prev.filter(img => img.id !== imageId));
+        console.log('Image removed from local state');
+        return true;
+      } else {
+        console.error('Delete failed:', response.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      return false;
+    }
+  }, []);
+
   const [localImages, setLocalImages] = useState<ImageItem[]>(getLocalImages);
 
   // Save local images to localStorage
@@ -113,10 +200,11 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
   // Get current images based on active category
   const getCurrentImages = useCallback(() => {
     if (activeCategory === 'my-uploads') {
-      return localImages;
+      // Combine API images and local images
+      return [...apiImages, ...localImages];
     }
     return stockImages.filter(img => img.category === activeCategory);
-  }, [activeCategory, localImages]);
+  }, [activeCategory, localImages, apiImages]);
 
   // Filter images based on search query (search by name and category)
   const filteredImages = getCurrentImages().filter(img => {
@@ -134,6 +222,13 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
     setDisplayCount(12);
   }, [activeCategory, searchQuery]);
 
+  // Load API images when component mounts or category changes
+  useEffect(() => {
+    if (isOpen && activeCategory === 'my-uploads') {
+      loadApiImages();
+    }
+  }, [isOpen, activeCategory, loadApiImages]);
+
   // Infinite scroll handler - optimized for better performance
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -150,7 +245,7 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
     for (const file of fileArray) {
       if (!file.type.startsWith('image/')) continue;
       
-      const imageId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const imageId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       setUploadingImages(prev => [...prev, imageId]);
       setUploadProgress(prev => ({ ...prev, [imageId]: 0 }));
       
@@ -161,7 +256,24 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
           setUploadProgress(prev => ({ ...prev, [imageId]: progress }));
         }
         
-        // Convert to data URL for local storage
+        // Upload to API if in my-uploads category
+        if (activeCategory === 'my-uploads') {
+          const success = await uploadImageToApi(file);
+          if (success) {
+            setUploadingImages(prev => prev.filter(id => id !== imageId));
+            setUploadProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[imageId];
+              return newProgress;
+            });
+            continue;
+          } else {
+            // Fallback to local storage if API fails
+            console.warn('API upload failed, saving locally');
+          }
+        }
+        
+        // Convert to data URL for local storage (fallback or non-API category)
         const reader = new FileReader();
         reader.onload = (e) => {
           const dataUrl = e.target?.result as string;
@@ -224,10 +336,33 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
     }
   };
 
-  // Delete local image
-  const handleDeleteImage = (imageId: string) => {
-    const updatedImages = localImages.filter(img => img.id !== imageId);
-    saveLocalImages(updatedImages);
+  // Delete image (API or local)
+  const handleDeleteImage = async (imageId: string) => {
+    console.log('Delete button clicked for image:', imageId);
+    const image = getCurrentImages().find(img => img.id === imageId);
+    console.log('Found image:', image);
+    
+    if (!image) {
+      console.log('Image not found');
+      return;
+    }
+
+    if (image.isLocal === false) {
+      console.log('Deleting from API...');
+      // Delete from API
+      const success = await deleteApiImage(imageId);
+      if (!success) {
+        alert('Failed to delete image from server');
+        return;
+      }
+      console.log('API delete successful');
+    } else {
+      console.log('Deleting from local storage...');
+      // Delete from local storage
+      const updatedImages = localImages.filter(img => img.id !== imageId);
+      saveLocalImages(updatedImages);
+      console.log('Local delete successful');
+    }
   };
 
   // Upload to API when image is selected (placeholder for future API integration)
@@ -242,7 +377,7 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
   };
 
   const categories = [
-    { id: 'my-uploads', name: 'My Images', icon: Upload, count: localImages.length },
+    { id: 'my-uploads', name: 'My Images', icon: Upload, count: apiImages.length + localImages.length },
     { id: 'stock-food', name: 'Food', icon: ImageIcon, count: stockImages.filter(img => img.category === 'stock-food').length },
     { id: 'stock-backgrounds', name: 'Bg', icon: FolderOpen, count: stockImages.filter(img => img.category === 'stock-backgrounds').length },
     { id: 'stock-decorative', name: 'Decor', icon: Plus, count: stockImages.filter(img => img.category === 'stock-decorative').length },
@@ -382,6 +517,28 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
             </div>
           )}
 
+          {/* API Loading State */}
+          {isLoadingApiImages && activeCategory === 'my-uploads' && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+              <span className="ml-2 text-gray-600">Loading your images...</span>
+            </div>
+          )}
+
+          {/* API Error State */}
+          {apiImagesError && activeCategory === 'my-uploads' && (
+            <div className="flex items-center justify-center py-8">
+              <AlertCircle className="w-6 h-6 text-red-500" />
+              <span className="ml-2 text-red-600">{apiImagesError}</span>
+              <button 
+                onClick={loadApiImages}
+                className="ml-4 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {displayedImages.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -417,8 +574,8 @@ const ImageLibraryPanel: React.FC<ImageLibraryPanelProps> = ({
                     <p className="text-white text-xs font-medium truncate">{image.name}</p>
                   </div>
                   
-                  {/* Delete button for local images */}
-                  {image.isLocal && (
+                  {/* Delete button for all images in My Images category */}
+                  {activeCategory === 'my-uploads' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

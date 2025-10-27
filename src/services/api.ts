@@ -335,6 +335,141 @@ class ApiService {
       };
     }
   }
+
+  // ==================== IMAGE MANAGEMENT APIs ====================
+
+  // Upload image to server
+  public async uploadImage(file: File, folder?: string): Promise<ApiResponse<{ url: string; id: string; filename: string }>> {
+    const url = `${this.baseURL}/template-images-library`;
+    
+    const formData = new FormData();
+    formData.append('file', file); // Your API expects 'file' parameter, not 'image'
+    if (folder) {
+      formData.append('folder', folder);
+    }
+
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+        // Don't set Content-Type, let browser set it for FormData
+      },
+      mode: 'cors',
+      credentials: 'omit',
+      body: formData,
+    };
+
+    try {
+      console.log('Uploading image to:', url);
+      const response = await fetch(url, config);
+      const data = await response.json();
+      console.log('Upload API response:', data);
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          url: data.data?.url || data.url || data.data?.image_url,
+          id: data.data?.id || data.id || `img_${Date.now()}`,
+          filename: data.data?.filename || data.filename || file.name,
+        },
+      };
+    } catch (error) {
+      console.error('Upload fetch error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
+  }
+
+  // Get user's images
+  public async getUserImages(page: number = 1, limit: number = 50): Promise<ApiResponse<{ images: any[]; total: number; page: number; limit: number }>> {
+    const url = `${this.baseURL}/template-images-library`;
+    
+    const config: RequestInit = {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+      },
+      mode: 'cors',
+      credentials: 'omit',
+    };
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      // Handle the response structure based on your actual API response
+      const images = data.data || [];
+      
+      return {
+        success: true,
+        data: {
+          images: Array.isArray(images) ? images : [],
+          total: images.length || 0,
+          page: page,
+          limit: limit,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
+  }
+
+  // Delete image
+  public async deleteImage(imageId: string): Promise<ApiResponse<any>> {
+    const url = `${this.baseURL}/template-images-library/${imageId}`;
+    
+    const config: RequestInit = {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+      },
+      mode: 'cors',
+      credentials: 'omit',
+    };
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      return {
+        success: true,
+        data: data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
+  }
 }
 
 // Export singleton instance

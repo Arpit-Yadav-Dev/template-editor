@@ -19,6 +19,7 @@ export const useAuth = (): UseAuthReturn => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasCheckedAuth = useRef(false);
+  const hasLoggedIn = useRef(false);
 
   // Clear error function
   const clearError = useCallback(() => {
@@ -38,9 +39,17 @@ export const useAuth = (): UseAuthReturn => {
         const user = response.data.data.user;
         setUser(user);
         setIsAuthenticated(true);
+        hasLoggedIn.current = true; // Mark that user has logged in
         // Store user info in localStorage for auto-login
         localStorage.setItem('user_info', JSON.stringify(user));
-        console.log('✅ Login successful:', response.data.message);
+        
+        // Force a state update to ensure components receive the new state
+        setTimeout(() => {
+          // Force re-render by setting state again
+          setUser(user);
+          setIsAuthenticated(true);
+        }, 50);
+        
         return true;
       } else {
         setError(response.error || response.data?.message || 'Login failed. Please try again.');
@@ -65,6 +74,7 @@ export const useAuth = (): UseAuthReturn => {
       setUser(null);
       setIsAuthenticated(false);
       setError(null);
+      hasLoggedIn.current = false; // Reset login flag
       // Clear user info from localStorage
       localStorage.removeItem('user_info');
     }
@@ -72,7 +82,7 @@ export const useAuth = (): UseAuthReturn => {
 
   // Check authentication on mount - simple token check (only once)
   useEffect(() => {
-    if (hasCheckedAuth.current) return;
+    if (hasCheckedAuth.current || hasLoggedIn.current) return;
     
     const checkAuth = () => {
       const token = apiService.getAuthToken();
@@ -89,7 +99,7 @@ export const useAuth = (): UseAuthReturn => {
             console.error('Error parsing stored user:', error);
           }
         }
-        console.log('✅ Auto-login successful - token found');
+        // Auto-login successful - token found
       } else {
         setIsAuthenticated(false);
       }
@@ -98,7 +108,8 @@ export const useAuth = (): UseAuthReturn => {
       hasCheckedAuth.current = true;
     };
 
-    checkAuth();
+    // Add a small delay to prevent race conditions
+    setTimeout(checkAuth, 100);
   }, []);
 
   // Listen for storage changes (for multi-tab sync)
