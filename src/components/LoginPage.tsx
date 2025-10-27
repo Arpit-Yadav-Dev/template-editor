@@ -5,7 +5,7 @@ import DSMOVILoader from './DSMOVILoader';
 import { useAuth } from '../hooks/useAuth';
 
 interface LoginPageProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (userData?: any) => void;
   onSkip: () => void;
 }
 
@@ -30,7 +30,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onSkip }) => {
   // Auto-login when authenticated - prevent infinite loops
   React.useEffect(() => {
     if (isAuthenticated && user && !isCheckingAuth) {
-      onLoginSuccess();
+      // Pass user data directly to avoid state sync issues
+      onLoginSuccess(user);
     }
   }, [isAuthenticated, user, isCheckingAuth, onLoginSuccess]);
 
@@ -52,8 +53,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onSkip }) => {
     });
     
     if (success) {
-      // onLoginSuccess will be called automatically by the useEffect
-      console.log('Login successful!');
+      // Login successful - navigation will be handled by useEffect
     }
   };
 

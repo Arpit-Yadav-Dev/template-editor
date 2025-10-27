@@ -1,7 +1,9 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import IntroTour from './components/IntroTour';
+// Lazy load modal components
+const IntroTour = lazy(() => import('./components/IntroTour'));
 import { CanvasSizeSelector } from './components/CanvasSizeSelector';
-import { MenuBoardGallery } from './components/MenuBoardGallery';
+// Lazy load heavy components
+const MenuBoardGallery = lazy(() => import('./components/MenuBoardGallery').then(module => ({ default: module.MenuBoardGallery })));
 import AnimatedBackground from './components/AnimatedBackground';
 import LoginPage from './components/LoginPage';
 import type { MenuBoardTemplate, CanvasSize } from './types/MenuBoard';
@@ -38,11 +40,21 @@ export default function App() {
   // Use auth hook
   const { isAuthenticated, user, logout: authLogout, isCheckingAuth } = useAuth();
   
+  // Track auth state changes in App component
+  useEffect(() => {
+    // Auth state changed
+  }, [isAuthenticated, user, isCheckingAuth]);
+  
   // Track if user chose to skip login
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
   const [introIndex, setIntroIndex] = useState(0);
   const [introScope, setIntroScope] = useState<'editor' | 'canvas' | 'gallery'>('editor');
+  
+  // Local user state to avoid sync issues
+  const [localUser, setLocalUser] = useState<any>(null);
+  const [localIsAuthenticated, setLocalIsAuthenticated] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -291,14 +303,19 @@ export default function App() {
     
     if (isAuthenticated && currentState === 'login') {
       setCurrentState('canvas-selection');
-    } else if (!isAuthenticated && !isGuestMode && currentState !== 'login') {
+    } else if (!isAuthenticated && !isGuestMode && currentState !== 'login' && !isCheckingAuth) {
       setCurrentState('login');
     }
-  }, [isAuthenticated, isCheckingAuth, currentState, isGuestMode]);
+  }, [isAuthenticated, isCheckingAuth, isGuestMode]); // Removed currentState to prevent loops
 
   // Login handlers
-  const handleLoginSuccess = () => {
-    // Navigation is handled by the main useEffect
+  const handleLoginSuccess = (userData?: any) => {
+    // Set local state immediately to avoid sync issues
+    setLocalIsAuthenticated(true);
+    setLocalUser(userData || user);
+    
+    // Force navigation immediately
+    setCurrentState('canvas-selection');
   };
 
   const handleSkipLogin = () => {
@@ -308,12 +325,24 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await authLogout();
-    // Reset all app state
-    setSelectedCanvasSize(null);
-    setSelectedTemplate(null);
-    setTemplates([]);
-    setIsGuestMode(false);
+    setIsLoggingOut(true);
+    try {
+      await authLogout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Reset all app state
+      setSelectedCanvasSize(null);
+      setSelectedTemplate(null);
+      setTemplates([]);
+      setIsGuestMode(false);
+      // Clear local state
+      setLocalUser(null);
+      setLocalIsAuthenticated(false);
+      setIsLoggingOut(false);
+      // Navigate back to login page
+      setCurrentState('login');
+    }
   };
 
   const filteredCanvasSizes = canvasSizes.filter(size => size.category === 'tv');
@@ -356,16 +385,24 @@ export default function App() {
                       </p>
                     </div>
                     <div className="flex items-center space-x-3">
-                      {isAuthenticated && user ? (
+                      {(localIsAuthenticated || isAuthenticated) && (localUser || user) ? (
                         <>
                           <span className="text-sm text-gray-600">
-                            Welcome, {user.name || user.email}
+                            Welcome, {(localUser || user).name || (localUser || user).email}
                           </span>
                           <button
                             onClick={handleLogout}
-                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                            disabled={isLoggingOut}
+                            className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
                           >
-                            Logout
+                            {isLoggingOut ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                <span>Logging out...</span>
+                              </>
+                            ) : (
+                              'Logout'
+                            )}
                           </button>
                         </>
                       ) : isGuestMode ? (
@@ -401,13 +438,9 @@ export default function App() {
             onSelectTemplate={handleTemplateSelect}
             onBack={handleBackToCanvasSelection}
             onDeleteTemplate={handleDeleteTemplate}
-            selectedCanvasSize={{ 
-              width: selectedCanvasSize!.width, 
-              height: selectedCanvasSize!.height, 
-              isHorizontal: selectedCanvasSize!.isHorizontal ?? true 
-            }}
-            isAuthenticated={isAuthenticated}
-            user={user || undefined}
+            selectedCanvasSize={selectedCanvasSize!}
+            isAuthenticated={localIsAuthenticated || isAuthenticated}
+            user={(localUser || user) || undefined}
             isGuestMode={isGuestMode}
           />
         )}

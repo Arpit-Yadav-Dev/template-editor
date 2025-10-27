@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -44,7 +44,8 @@ import {
 import domToImage from 'dom-to-image';
 import { MenuBoardElement, MenuBoardTemplate, MenuBoardGroup, SelectionRectangle } from '../types/MenuBoard';
 import { canvasSizes } from '../data/canvasSizes';
-import ImageLibraryPanel from './ImageLibraryPanel';
+// Lazy load heavy components
+const ImageLibraryPanel = lazy(() => import('./ImageLibraryPanel'));
 
 type DragOffsets = Record<string, { dx: number; dy: number }>;
 
@@ -6098,14 +6099,25 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
       )}
 
       {/* Image Library Panel */}
-      <ImageLibraryPanel
-        isOpen={showImageLibrary}
-        onClose={() => setShowImageLibrary(false)}
-        context={imageLibraryContext}
-        onSelectImage={(imageUrl, context) => {
-          if (context === 'new-element') {
-            // When an image is selected from the library, add it as a new image element
-            const newElement: MenuBoardElement = {
+      <Suspense fallback={
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-6"></div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading Image Library...</h3>
+              <p className="text-gray-600">Please wait while we load the image library</p>
+            </div>
+          </div>
+        </div>
+      }>
+        <ImageLibraryPanel
+          isOpen={showImageLibrary}
+          onClose={() => setShowImageLibrary(false)}
+          context={imageLibraryContext}
+          onSelectImage={(imageUrl, context) => {
+            if (context === 'new-element') {
+              // When an image is selected from the library, add it as a new image element
+              const newElement: MenuBoardElement = {
               id: `element-${Date.now()}`,
               type: 'image',
               x: 100,
@@ -6134,6 +6146,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
           setImageLibraryTargetId(null);
         }}
       />
+      </Suspense>
 
     </div>
   );
