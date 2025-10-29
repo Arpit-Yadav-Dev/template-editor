@@ -225,8 +225,15 @@ export default function App() {
       
       let response;
       
-      if (isDefaultTemplate) {
-        // Default templates ALWAYS create new (never update the original)
+      console.log(isDefaultTemplate, "---isDefaultTemplate")
+      console.log(updated.saveAction,"--action")
+      console.log(user?.user_type,"---usertype")
+      if (isDefaultTemplate && updated.saveAction === 'update' && user?.user_type === 'admin') {
+        // Admin updating a default template
+        console.log('🔄 Admin updating default template with ID:', updated.id);
+        response = await apiService.updateTemplateWithThumbnail(updated.id, updated, blob);
+      } else if (isDefaultTemplate && (!updated.saveAction || updated.saveAction === 'saveAsNew')) {
+        // Default templates create new when saveAsNew is selected or no action specified
         console.log('✨ Creating new template from default template');
         response = await apiService.saveTemplateWithThumbnail(updated, blob);
       } else if (isUserTemplate && updated.saveAction === 'update') {
@@ -446,7 +453,12 @@ export default function App() {
         )}
         {currentState === 'editor' && selectedTemplate && (
           <>
-            <MenuBoardEditor template={selectedTemplate} onBack={handleBackToTemplateGallery} onSave={handleSaveTemplate} />
+            <MenuBoardEditor 
+              template={selectedTemplate} 
+              onBack={handleBackToTemplateGallery} 
+              onSave={handleSaveTemplate}
+              user={localUser || user}
+            />
             {/* Restart tour button - very compact */}
             <button
               onClick={() => { localStorage.removeItem('intro_seen'); setShowIntro(true); setIntroIndex(0); }}

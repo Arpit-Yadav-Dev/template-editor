@@ -53,6 +53,13 @@ interface MenuBoardEditorProps {
   template: MenuBoardTemplate;
   onBack: () => void;
   onSave: (template: MenuBoardTemplate, options?: { thumbnailBlob?: Blob }) => void;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    user_type: string;
+    createdAt: string;
+  };
 }
 
 const DEG = '\u00B0';
@@ -61,7 +68,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   template: initialTemplate,
   onBack,
   onSave,
+  user,
 }) => {
+  // Helper function to check if current user is admin
+  const isAdmin = user?.user_type === 'admin';
+
   // Thumbnail export settings (adjust as needed)
   // THUMBNAIL_PIXEL_RATIO: render scale for capture (higher = sharper, larger)
   // THUMBNAIL_MAX_EDGE: downscale longest edge to this size to keep file small
@@ -118,6 +129,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
   const [shapeColor, setShapeColor] = useState<string>('#3B82F6');
   const [shapeStrokeColor, setShapeStrokeColor] = useState<string>('transparent');
   const [shapeStrokeWidth, setShapeStrokeWidth] = useState<number>(0);
+  const [adminEditMode, setAdminEditMode] = useState<boolean>(false);
   
 
 
@@ -3448,6 +3460,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                     setTemplate(updated);
                     templateRef.current = updated;
                   }
+                  if (template.isDefaultTemplate && !template.saveAction && isAdmin) {
+                    const updated = { ...templateRef.current, saveAction: 'update' as const };
+                    setTemplate(updated);
+                    templateRef.current = updated;
+                  }
                   setShowTemplateSettings(true);
                 }} 
                 className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
@@ -3637,6 +3654,11 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 if (isUserOrDefaultTemplate || !hasName || !hasDescription || templateRef.current.category === 'custom') {
                   // Initialize saveAction to 'update' for user templates by default
                   if (template.isUserTemplate && !template.saveAction) {
+                    const updated = { ...templateRef.current, saveAction: 'update' as const };
+                    setTemplate(updated);
+                    templateRef.current = updated;
+                  }
+                  if (template.isDefaultTemplate && !template.saveAction && isAdmin) {
                     const updated = { ...templateRef.current, saveAction: 'update' as const };
                     setTemplate(updated);
                     templateRef.current = updated;
@@ -5767,8 +5789,8 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 </div>
               )}
               
-              {/* Info message for Default Templates */}
-              {template.isDefaultTemplate && (
+              {/* Info message for Default Templates (hidden for admins) */}
+              {template.isDefaultTemplate && !isAdmin && (
                 <div className="border-t border-gray-200 pt-4">
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-start space-x-2">
@@ -5782,6 +5804,55 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Admin option for Default Templates */}
+              {template.isDefaultTemplate && isAdmin && (
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Save Action</label>
+                  <div className="space-y-2">
+                    <label className={`flex items-start space-x-3 p-3 border-2 ${templateRef.current?.saveAction === "update"?"border-blue-500 bg-blue-50":""} rounded-lg cursor-pointer hover:bg-blue-100 transition-colors`}>
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="update"
+                        defaultChecked={templateRef.current?.saveAction === "update"}
+                        onChange={(e) => {
+                          const updated = { ...templateRef.current, saveAction: 'update' as const };
+                          setTemplate(updated);
+                          templateRef.current = updated;
+                        }}
+                        className="mt-1 w-4 h-4 text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-900">Update Template</div>
+                        <div className="text-sm text-blue-700">
+                          Save changes to this template (overwrites existing)
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-start space-x-3 p-3 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="saveAsNew"
+                        defaultChecked={templateRef.current?.saveAction === "saveAsNew"}
+                        onChange={(e) => {
+                          const updated = { ...templateRef.current, saveAction: 'saveAsNew' as const };
+                          setTemplate(updated);
+                          templateRef.current = updated;
+                        }}
+                        className="mt-1 w-4 h-4 text-green-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">Save as New Template</div>
+                        <div className="text-sm text-gray-600">
+                          Create a new template (keeps original unchanged)
+                        </div>
+                      </div>
+                    </label>
                   </div>
                 </div>
               )}
