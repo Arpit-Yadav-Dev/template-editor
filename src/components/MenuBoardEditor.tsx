@@ -5746,12 +5746,12 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 <div className="border-t border-gray-200 pt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-3">Save Action</label>
                   <div className="space-y-2">
-                    <label className="flex items-start space-x-3 p-3 border-2 border-blue-500 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                    <label className={`flex items-start space-x-3 p-3 border-2 ${templateRef.current?.saveAction === "update"?"border-blue-500 bg-blue-50":""}  rounded-lg cursor-pointer hover:bg-blue-100 transition-colors`}>
                       <input
                         type="radio"
                         name="saveAction"
                         value="update"
-                        defaultChecked
+                        defaultChecked={templateRef.current?.saveAction === "update"}
                         onChange={(e) => {
                           const updated = { ...templateRef.current, saveAction: 'update' as const };
                           setTemplate(updated);
@@ -5771,6 +5771,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                         type="radio"
                         name="saveAction"
                         value="saveAsNew"
+                        defaultChecked={templateRef.current?.saveAction === "saveAsNew"}
                         onChange={(e) => {
                           const updated = { ...templateRef.current, saveAction: 'saveAsNew' as const };
                           setTemplate(updated);
