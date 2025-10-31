@@ -1853,7 +1853,60 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     
     window.removeEventListener('mousemove', onPointerMove);
     window.removeEventListener('mouseup', onPointerUp);
-    commitHistory();
+
+    // If items were dropped outside the canvas, remove them
+    const canvasWidth = templateRef.current.canvasSize.width;
+    const canvasHeight = templateRef.current.canvasSize.height;
+
+    const isOutside = (x: number, y: number, w: number, h: number) => {
+      return (x + w) <= 0 || x >= canvasWidth || (y + h) <= 0 || y >= canvasHeight;
+    };
+
+    let removedSomething = false;
+
+    // Remove elements fully outside
+    const remainingElements = templateRef.current.elements.filter((el) => {
+      if (!selectedIds.includes(el.id)) return true; // only act on dragged selection
+      if (isOutside(el.x, el.y, el.width, el.height)) {
+        removedSomething = true;
+        return false;
+      }
+      return true;
+    });
+
+    // Remove groups that are fully outside (and their elements)
+    let remainingGroups = templateRef.current.groups || [];
+    if (templateRef.current.groups && templateRef.current.groups.length > 0) {
+      const toRemoveGroupIds = new Set<string>();
+      for (const g of templateRef.current.groups) {
+        if (!selectedIds.includes(g.id)) continue;
+        if (isOutside(g.x, g.y, g.width, g.height)) {
+          toRemoveGroupIds.add(g.id);
+        }
+      }
+      if (toRemoveGroupIds.size > 0) {
+        removedSomething = true;
+        // drop elements that belong to removed groups
+        const groupElementIds = new Set<string>(
+          templateRef.current.elements
+            .filter(el => el.groupId && toRemoveGroupIds.has(el.groupId))
+            .map(el => el.id)
+        );
+        // filter elements again to exclude grouped ones
+        remainingElements.splice(0, remainingElements.length, ...remainingElements.filter(el => !groupElementIds.has(el.id)));
+        remainingGroups = remainingGroups.filter(g => !toRemoveGroupIds.has(g.id));
+      }
+    }
+
+    if (removedSomething) {
+      const next = { ...templateRef.current, elements: remainingElements, groups: remainingGroups };
+      setTemplate(next);
+      templateRef.current = next;
+      setSelectedIds([]);
+      commitHistory(next);
+    } else {
+      commitHistory();
+    }
   };
 
   // ---------- Element ops ----------
@@ -2886,7 +2939,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
     return (
       <div
         key={el.id}
-        className="absolute select-none"
+        className="absolute select-none mt-8"
         style={{
           left: el.x,
           top: el.y,
@@ -3767,16 +3820,16 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
 
         <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* Canvas Area */}
-          <div id="editor-canvas-area" className="flex-1 overflow-auto bg-gray-200 p-8">
-            <div className="mx-auto max-w-max">
+          <div id="editor-canvas-area" className="flex-1 overflow-auto bg-gray-200 p-8 ps-32 pt-24">
+            <div>
               {/* Wrapper sized to scaled dimensions so scrollbars reflect zoom */}
               <div
                 ref={wrapperRef}
-                className="relative shadow-2xl bg-white border-4 border-blue-500"
-                style={{
-                  width: template.canvasSize.width,
-                  height: template.canvasSize.height,
-                }}
+                className="relative shadow-2xl bg-white flex"
+                // style={{
+                //   width: template.canvasSize.width,
+                //   height: template.canvasSize.height,
+                // }}
                 onMouseDown={handleCanvasMouseDown}
               >
                 {/* Canvas size label (kept inside to avoid clipping) */}
@@ -3788,7 +3841,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                 </div>
 
                 {/* Grid overlay */}
-                {showGrid && (
+                {/* {showGrid && (
                   <div 
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -3799,7 +3852,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                       backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
                     }}
                   />
-                )}
+                )} */}
 
                 {/* Guides */}
                 {guides.map(guide => (
@@ -3844,7 +3897,7 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                     backgroundImage: template.backgroundImage ? `url(${template.backgroundImage})` : undefined,
                     backgroundSize: template.backgroundImageFit || 'cover',
                     backgroundPosition: template.backgroundImagePosition || 'center',
-                    overflow: 'visible',
+                    overflow: 'hidden',
                   }}
                 >
                   {sortedElements.map(renderElement)}
@@ -4012,15 +4065,18 @@ export const MenuBoardEditor: React.FC<MenuBoardEditorProps> = ({
                     const maxX = Math.max(...allSelectedItems.map(item => item.x + item.width));
                     const minY = Math.min(...allSelectedItems.map(item => item.y));
                     const centerX = (minX + maxX) / 2;
+                    const rect = innerRef.current?.getBoundingClientRect();
+                    const fixedLeft = rect ? rect.left + centerX * zoom : centerX;
+                    const fixedTop = rect ? rect.top + (minY - 100) * zoom : (minY - 100);
                     
                     return (
                       <div 
                         data-toolbar="multi-select"
-                        className="absolute flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200" 
+                        className="fixed flex items-center space-x-2 bg-white/95 text-gray-800 backdrop-blur rounded-lg shadow-lg px-3 py-2 border border-gray-200" 
                         style={{ 
                           zIndex: 2147483647,
-                          left: centerX,
-                          top: minY - 100,
+                          left: fixedLeft,
+                          top: fixedTop,
                           transform: 'translateX(-50%)',
                           pointerEvents: 'auto'
                         }}
